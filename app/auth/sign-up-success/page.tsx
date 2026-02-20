@@ -1,32 +1,9 @@
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-
-export default function Page() {
+export default function SignUpSuccessPage() {
   return (
-    <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
-      <div className="w-full max-w-sm">
-        <div className="flex flex-col gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-2xl">
-                Thank you for signing up!
-              </CardTitle>
-              <CardDescription>Check your email to confirm</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                You&apos;ve successfully signed up. Please check your email to
-                confirm your account before signing in.
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+    <div className="flex flex-col items-center justify-center min-h-[60vh] py-8">
+      <h1 className="text-2xl font-bold mb-4">Sign Up Successful!</h1>
+      <p className="text-lg mb-4">Check your email to confirm your account and complete the sign up process.</p>
+      <p className="text-sm text-muted-foreground">Once confirmed, you can log in with your new account.</p>
     </div>
   );
 }

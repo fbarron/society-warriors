@@ -4,57 +4,59 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 3.9%;
-    --primary: 0 0% 9%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 96.1%;
-    --secondary-foreground: 0 0% 9%;
-    --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 45.1%;
-    --accent: 0 0% 96.1%;
-    --accent-foreground: 0 0% 9%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
-    --ring: 0 0% 3.9%;
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
+    --login-btn: 180 64% 58%; /* teal blue for login button */
+    --signup-btn: 212 33% 49%; /* blue for signup button */
+    --background: 0 0% 100%; /* white */
+    --foreground: 222 47% 11%; /* deep blue */
+    --card: 210 60% 98%; /* pale blue */
+    --card-foreground: 222 47% 11%; /* deep blue */
+    --popover: 210 60% 98%; /* pale blue */
+    --popover-foreground: 222 47% 11%; /* deep blue */
+    --primary: 187 10% 18%; /* blueish-grey */
+    --primary-foreground: 0 0% 100%; /* white */
+    --secondary: 200 100% 92%; /* light cyan */
+    --secondary-foreground: 222 47% 11%; /* deep blue */
+    --muted: 210 40% 96%; /* soft blue */
+    --muted-foreground: 222 20% 40%; /* muted blue */
+    --accent: 280 80% 80%; /* lavender */
+    --accent-foreground: 222 47% 11%; /* deep blue */
+    --destructive: 350 80% 60%; /* pinkish red */
+    --destructive-foreground: 0 0% 100%; /* white */
+    --border: 212 33% 49%; /* light blue */
+    --input: 220 30% 90%; /* light blue-gray */
+    --ring: 220 90% 56%; /* vibrant blue */
+    --chart-1: 220 90% 56%; /* vibrant blue */
+    --chart-2: 200 100% 70%; /* cyan */
+    --chart-3: 280 80% 80%; /* lavender */
+    --chart-4: 340 80% 70%; /* pink */
+    --chart-5: 45 100% 70%; /* gold */
     --radius: 0.5rem;
   }
   .dark {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
+    --background: 222 47% 11%; /* deep blue */
+    --foreground: 210 60% 98%; /* pale blue */
+    --card: 220 40% 18%; /* dark blue */
+    --card-foreground: 210 60% 98%; /* pale blue */
+    --popover: 220 40% 18%; /* dark blue */
+    --popover-foreground: 210 60% 98%; /* pale blue */
+    --primary: 200 100% 70%; /* cyan */
+    --primary-foreground: 222 47% 11%; /* deep blue */
+    --secondary: 280 80% 30%; /* deep lavender */
+    --secondary-foreground: 210 60% 98%; /* pale blue */
+    --muted: 220 30% 25%; /* muted blue */
+    --muted-foreground: 210 40% 80%; /* soft blue */
+    --accent: 340 80% 70%; /* pink */
+    --accent-foreground: 210 60% 98%; /* pale blue */
+    --destructive: 350 80% 60%; /* pinkish red */
+    --destructive-foreground: 210 60% 98%; /* pale blue */
+    --border: 220 30% 40%; /* blue-gray */
+    --input: 220 30% 40%; /* blue-gray */
+    --ring: 200 100% 70%; /* cyan */
+    --chart-1: 200 100% 70%; /* cyan */
+    --chart-2: 220 90% 56%; /* vibrant blue */
+    --chart-3: 280 80% 80%; /* lavender */
+    --chart-4: 45 100% 70%; /* gold */
+    --chart-5: 340 80% 70%; /* pink */
   }
 }
 

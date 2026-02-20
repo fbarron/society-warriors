@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import { ThemeProvider } from "next-themes";
+
 import "./globals.css";
+import Header from "../components/header";
+import Footer from "../components/footer";
+import { Suspense } from "react";
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
@@ -26,14 +30,21 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${geistSans.className} antialiased`}>
+      <head>
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+      </head>
+      <body className={`${geistSans.className} antialiased flex flex-col min-h-screen`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
         >
-          {children}
+          <Header />
+          <main className="flex-1">{children}</main>
+          <Suspense>
+            <Footer />
+          </Suspense>
         </ThemeProvider>
       </body>
     </html>
