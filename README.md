@@ -42,3 +42,13 @@ This repository focuses on a functional MVP demonstrating core user flows rather
 - University licensing model
 - Featured event promotion
 - Ticketing integrations
+
+## Landing Page Links
+Landing page:
+https://rockyrhino2005.github.io
+
+Landing Page Form:
+https://docs.google.com/spreadsheets/d/1A20nSQ-rO-N57D_JCQ1ZDs4LNoQiN3dDbzKNYXUac9g/edit?gid=0#gid=0
+
+Landing Page Github:
+https://github.com/RockyRhino2005/RockyRhino2005.github.io/tree/main
