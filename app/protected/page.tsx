@@ -25,6 +25,24 @@ type Post = {
   comments?: Comment[];
 };
 
+const mergeUniquePosts = (existingPosts: Post[], incomingPosts: Post[]) => {
+  const postMap = new Map<number, Post>();
+
+  existingPosts.forEach((post) => {
+    postMap.set(post.id, post);
+  });
+
+  incomingPosts.forEach((post) => {
+    const current = postMap.get(post.id);
+    postMap.set(post.id, current ? { ...current, ...post } : post);
+  });
+
+  return Array.from(postMap.values()).sort(
+    (first, second) =>
+      new Date(second.created_at).getTime() - new Date(first.created_at).getTime()
+  );
+};
+
 const supabase = createClient();
 
 export default function SocialFeedPage() {
@@ -78,7 +96,7 @@ export default function SocialFeedPage() {
       return;
     }
     if (data.length < PAGE_SIZE) setHasMore(false);
-    setPosts((prev) => [...prev, ...data as Post[]]);
+    setPosts((prev) => mergeUniquePosts(prev, data as Post[]));
     setLoading(false);
   };
 
@@ -125,7 +143,7 @@ export default function SocialFeedPage() {
       return;
     }
     if (data) {
-      setPosts([data[0] as Post, ...posts]);
+      setPosts((prev) => mergeUniquePosts(prev, [data[0] as Post]));
       setNewPost("");
     }
   };
