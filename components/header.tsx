@@ -35,6 +35,11 @@ async function HeaderAuthActions() {
           Protected
         </Button>
       </Link>
+      <Link href="/profile">
+        <Button className="bg-[hsl(var(--signup-btn))] text-primary-foreground hover:bg-secondary border border-border">
+          Profile
+        </Button>
+      </Link>
       <LogoutButton />
     </>
   );
