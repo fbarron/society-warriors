@@ -43,17 +43,37 @@ async function HeaderAuthActions() {
 export default function Header() {
 
   return (
-    <header className="w-full flex items-center justify-between px-6 py-4 border-b bg-primary text-primary-foreground shadow-sm">
-      <div className="flex items-center gap-2">
-        <Link href="/">
-          <Image src="/favicon.svg" alt="Favicon" width={50} height={50} />
-        </Link>
-        <span className="font-bold text-lg">Society Warriors</span>
-      </div>
-      <div className="flex items-center gap-2">
-        <Suspense fallback={<HeaderAuthFallback />}>
-          <HeaderAuthActions />
-        </Suspense>
+    <header className="w-full border-b bg-primary text-primary-foreground shadow-sm">
+      <div className="flex items-center justify-between gap-4 px-6 py-4">
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2">
+            <Link href="/">
+              <Image src="/favicon.svg" alt="Favicon" width={50} height={50} />
+            </Link>
+            <span className="font-bold text-lg">Society Warriors</span>
+          </div>
+
+          <nav className="hidden items-center gap-1 md:flex">
+            <Button asChild variant="ghost" size="default">
+              <Link href="/">Home</Link>
+            </Button>
+            <Button asChild variant="ghost" size="default">
+              <Link href="/contactus">Contact</Link>
+            </Button>
+            <Button asChild variant="ghost" size="default">
+              <Link href="/privacy">Privacy</Link>
+            </Button>
+            <Button asChild variant="ghost" size="default">
+              <Link href="/terms">Terms</Link>
+            </Button>
+          </nav>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Suspense fallback={<HeaderAuthFallback />}>
+            <HeaderAuthActions />
+          </Suspense>
+        </div>
       </div>
     </header>
   );
