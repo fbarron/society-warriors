@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
 // Types
@@ -207,18 +208,20 @@ export default function SocialFeedPage() {
       <div className="flex flex-col gap-8">
         {posts.map((post) => (
           <div key={post.id} className="bg-white rounded-xl shadow p-6">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200">
-                <img
-                  src={post.user?.avatar_url || "/default-avatar.png"}
-                  alt={post.user?.name || "User"}
-                  className="object-cover w-full h-full"
-                />
-              </div>
-              <div>
-                <div className="font-semibold text-base">{post.user?.name || "Unknown User"}</div>
-                <div className="text-xs text-gray-500">{new Date(post.created_at).toLocaleString()}</div>
-              </div>
+            <div className="mb-2">
+              <Link href={`/profile/${post.user?.id}`} className="inline-flex items-center gap-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400">
+                <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200">
+                  <img
+                    src={post.user?.avatar_url || "/default-avatar.png"}
+                    alt={post.user?.name || "User"}
+                    className="object-cover w-full h-full"
+                  />
+                </div>
+                <div>
+                  <div className="font-semibold text-base hover:underline">{post.user?.name || "Unknown User"}</div>
+                  <div className="text-xs text-gray-500">{new Date(post.created_at).toLocaleString()}</div>
+                </div>
+              </Link>
             </div>
             <div className="mb-4 text-lg font-medium text-gray-900">{post.content}</div>
             {/* Comments */}

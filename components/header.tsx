@@ -63,6 +63,9 @@ export default function Header() {
               <Link href="/">Home</Link>
             </Button>
             <Button asChild variant="ghost" size="default">
+              <Link href="/communities">Communities</Link>
+            </Button>
+            <Button asChild variant="ghost" size="default">
               <Link href="/contactus">Contact</Link>
             </Button>
             <Button asChild variant="ghost" size="default">
