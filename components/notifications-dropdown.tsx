@@ -38,7 +38,16 @@ export function NotificationsDropdown() {
     try {
       setLoading(true);
       const response = await fetch("/api/notifications?limit=3");
-      if (!response.ok) throw new Error("Failed to fetch notifications");
+
+      if (response.status === 401 || response.status === 403) {
+        setNotifications([]);
+        setUnreadCount(0);
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch notifications");
+      }
 
       const data = await response.json();
       setNotifications(data.notifications || []);
@@ -81,6 +90,12 @@ export function NotificationsDropdown() {
       const response = await fetch(`/api/notifications/${notificationId}/read`, {
         method: "PATCH",
       });
+
+      if (response.status === 401 || response.status === 403) {
+        setNotifications([]);
+        setUnreadCount(0);
+        return;
+      }
 
       if (!response.ok) throw new Error("Failed to mark as read");
 
