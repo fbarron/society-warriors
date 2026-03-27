@@ -31,7 +31,7 @@ type MembershipRow = {
 function toCommunityRecord(raw: Record<string, unknown>, members: number): CommunityRecord {
   return {
     id: String(raw.id ?? ""),
-    name: typeof raw.name === "string" && raw.name.trim() ? raw.name : "Unnamed community",
+    name: typeof raw.name === "string" && raw.name.trim() ? raw.name : "Unnamed society",
     privacy:
       typeof raw.privacy === "string" && raw.privacy.toLowerCase() === "private"
         ? "private"
@@ -194,11 +194,11 @@ export default async function CommunitiesPage() {
     <main className="mx-auto w-full max-w-6xl px-4 py-8 md:px-6 md:py-10">
       <section className="mb-6 flex flex-col gap-4 rounded-xl border bg-card p-6 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Communities</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Societies</h1>
           <p className="text-muted-foreground">Find, join, and manage your groups in one place.</p>
         </div>
         <form action={createCommunity} className="flex w-full max-w-md gap-2">
-          <Input name="name" placeholder="Community name" required />
+          <Input name="name" placeholder="Society name" required />
           <Button type="submit">Create</Button>
         </form>
       </section>
@@ -207,11 +207,11 @@ export default async function CommunitiesPage() {
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Your Communities</CardTitle>
+              <CardTitle>Your Societies</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {yourCommunities.length === 0 && (
-                <p className="text-sm text-muted-foreground">You haven&apos;t joined any communities yet.</p>
+                <p className="text-sm text-muted-foreground">You haven&apos;t joined any societies yet.</p>
               )}
               {yourCommunities.map((community) => (
                 <div key={community.id} className="rounded-lg border p-4">
@@ -239,11 +239,11 @@ export default async function CommunitiesPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Discover Communities</CardTitle>
+              <CardTitle>Discover Societies</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-3 sm:grid-cols-2">
               {discoverCommunities.length === 0 && (
-                <p className="text-sm text-muted-foreground">No communities left to discover right now.</p>
+                <p className="text-sm text-muted-foreground">No societies left to discover right now.</p>
               )}
               {discoverCommunities.map((community) => (
                 <div key={community.id} className="rounded-lg border p-4">

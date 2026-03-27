@@ -276,7 +276,7 @@ async function leaveCommunity(formData: FormData) {
 function toCommunityDetail(raw: Record<string, unknown>): CommunityDetail {
   return {
     id: String(raw.id ?? ""),
-    name: typeof raw.name === "string" && raw.name.trim() ? raw.name : "Unnamed community",
+    name: typeof raw.name === "string" && raw.name.trim() ? raw.name : "Unnamed society",
     privacy:
       typeof raw.privacy === "string" && raw.privacy.toLowerCase() === "private"
         ? "private"
@@ -331,6 +331,11 @@ async function CommunityDetailContent({ communityId }: { communityId: string }) 
   const canEditCommunity =
     isCreator || myRole === "owner" || myRole === "admin" || myRole === "moderator";
   const canManageMembers = isCreator || myRole === "owner" || myRole === "admin";
+  const { count: pendingPostsCount } = await supabase
+    .from("posts")
+    .select("id", { count: "exact", head: true })
+    .eq("community_id", community.id)
+    .eq("status", "pending");
 
   return (
     <Card>
@@ -347,10 +352,30 @@ async function CommunityDetailContent({ communityId }: { communityId: string }) 
         <CardContent className="space-y-5">
           <p className="text-sm">{community.description}</p>
 
+          {canManageMembers && (
+            <Card className="border-dashed">
+              <CardHeader>
+                <CardTitle className="text-base">Admin Actions</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap items-center gap-3">
+                  <Button asChild>
+                    <Link href={`/communities/${community.id}/admin/pending-posts`}>
+                      Pending Approvals ({pendingPostsCount ?? 0})
+                    </Link>
+                  </Button>
+                  <p className="text-xs text-muted-foreground">
+                    Review and approve member posts awaiting moderation.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {canEditCommunity && (
             <Card className="border-dashed">
               <CardHeader>
-                <CardTitle className="text-base">Edit community</CardTitle>
+                <CardTitle className="text-base">Edit society</CardTitle>
               </CardHeader>
               <CardContent>
                 <form action={updateCommunity} className="space-y-3">
@@ -488,7 +513,7 @@ async function CommunityDetailContent({ communityId }: { communityId: string }) 
           )}
 
           {!user && (
-            <p className="text-sm text-muted-foreground">Log in to join this community.</p>
+            <p className="text-sm text-muted-foreground">Log in to join this society.</p>
           )}
 
           {user && (
@@ -497,15 +522,15 @@ async function CommunityDetailContent({ communityId }: { communityId: string }) 
                 <form action={leaveCommunity}>
                   <input type="hidden" name="communityId" value={community.id} />
                   <Button type="submit" variant="outline">
-                    Leave community
+                    Leave society
                   </Button>
                 </form>
               ) : community.privacy === "private" ? (
-                <Button disabled>Private community</Button>
+                <Button disabled>Private society</Button>
               ) : (
                 <form action={joinCommunity}>
                   <input type="hidden" name="communityId" value={community.id} />
-                  <Button type="submit">Join community</Button>
+                  <Button type="submit">Join society</Button>
                 </form>
               )}
             </div>
@@ -550,16 +575,14 @@ async function CommunityDetailRoute({ params }: { params: Promise<{ id: string }
   return <CommunityDetailContent communityId={communityId} />;
 }
 
-export default function CommunityDetailPage({
-  params,
-}: {
+export default function CommunityDetailPage({ params }: {
   params: Promise<{ id: string }>;
 }) {
   return (
     <main className="mx-auto w-full max-w-4xl px-4 py-8 md:px-6 md:py-10">
       <div className="mb-5">
         <Link href="/communities" className="text-sm text-primary hover:underline">
-          ← Back to communities
+          ← Back to societies
         </Link>
       </div>
 

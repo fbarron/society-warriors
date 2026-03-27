@@ -15,7 +15,7 @@ const feedPreview = [
   {
     name: "Ava Johnson",
     handle: "@avaj",
-    post: "Just finished a 30-day challenge with my community. Proud of everyone for showing up every day!",
+    post: "Just finished a 30-day challenge with my society. Proud of everyone for showing up every day!",
     likes: 128,
     comments: 34,
   },
@@ -54,7 +54,7 @@ export default function Home() {
           </Badge>
           <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Connect with people who share your interests.</h1>
           <p className="max-w-xl text-muted-foreground">
-            Post updates, join communities, and grow your network with real conversations.
+            Post updates, join societies, and grow your network with real conversations.
           </p>
           <div className="flex flex-wrap gap-3">
             <Button asChild>
@@ -104,7 +104,7 @@ export default function Home() {
 
           <Card className="h-full min-h-[220px]">
             <CardHeader>
-              <CardTitle>Communities</CardTitle>
+              <CardTitle>Societies</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               {communities.map((community) => (

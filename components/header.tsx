@@ -32,7 +32,7 @@ async function HeaderAuthActions() {
     <>
       <Link href="/protected">
         <Button className="bg-[hsl(var(--login-btn))] text-primary-foreground hover:bg-secondary border border-border">
-          Protected
+          Feed
         </Button>
       </Link>
       <Link href="/profile">
@@ -48,31 +48,20 @@ async function HeaderAuthActions() {
 export default function Header() {
 
   return (
-    <header className="w-full border-b bg-primary text-primary-foreground shadow-sm">
-      <div className="flex items-center justify-between gap-4 px-6 py-4">
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2">
-            <Link href="/">
-              <Image src="/favicon.svg" alt="Favicon" width={50} height={50} />
-            </Link>
-            <span className="font-bold text-lg">Society Warriors</span>
-          </div>
+    <header className="sticky top-0 z-50 w-full border-b bg-primary/95 text-primary-foreground shadow-sm backdrop-blur">
+      <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 py-3 md:px-6">
+        <div className="flex items-center gap-4 md:gap-6">
+          <Link href="/" className="flex items-center gap-2 rounded-md px-1 py-1 transition hover:bg-secondary/30">
+            <Image src="/favicon.svg" alt="Society Warriors" width={38} height={38} />
+            <span className="text-base font-bold tracking-tight md:text-lg">Society Warriors</span>
+          </Link>
 
-          <nav className="hidden items-center gap-1 md:flex">
-            <Button asChild variant="ghost" size="default">
+          <nav className="flex items-center gap-1">
+            <Button asChild variant="ghost" size="sm">
               <Link href="/">Home</Link>
             </Button>
-            <Button asChild variant="ghost" size="default">
-              <Link href="/communities">Communities</Link>
-            </Button>
-            <Button asChild variant="ghost" size="default">
-              <Link href="/contactus">Contact</Link>
-            </Button>
-            <Button asChild variant="ghost" size="default">
-              <Link href="/privacy">Privacy</Link>
-            </Button>
-            <Button asChild variant="ghost" size="default">
-              <Link href="/terms">Terms</Link>
+            <Button asChild variant="ghost" size="sm">
+              <Link href="/communities">Societies</Link>
             </Button>
           </nav>
         </div>
