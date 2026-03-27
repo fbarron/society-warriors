@@ -89,6 +89,7 @@ export default function SocietyChatPage() {
   const typingStopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const attachmentInputRef = useRef<HTMLInputElement | null>(null);
   const roomNotifyChannelRef = useRef<RealtimeChannel | null>(null);
+  const messagesScrollRef = useRef<HTMLDivElement | null>(null);
 
   const selectedCommunity = useMemo(
     () => communities.find((community) => community.id === selectedCommunityId) ?? null,
@@ -135,6 +136,18 @@ export default function SocietyChatPage() {
     reconnectTimerRef.current = setTimeout(() => {
       setRealtimeNonce((prev) => prev + 1);
     }, 1500);
+  };
+
+  const scrollMessagesToBottom = (behavior: ScrollBehavior = "auto") => {
+    const scrollContainer = messagesScrollRef.current;
+    if (!scrollContainer) {
+      return;
+    }
+
+    scrollContainer.scrollTo({
+      top: scrollContainer.scrollHeight,
+      behavior,
+    });
   };
 
   useEffect(() => {
@@ -364,6 +377,22 @@ export default function SocietyChatPage() {
     };
   }, [communities, currentUserId, selectedCommunityId]);
 
+  useEffect(() => {
+    if (!selectedCommunityId) {
+      return;
+    }
+
+    scrollMessagesToBottom();
+  }, [selectedCommunityId]);
+
+  useEffect(() => {
+    if (messages.length === 0) {
+      return;
+    }
+
+    scrollMessagesToBottom();
+  }, [messages.length]);
+
   const handleChannelChange = async (communityId: string) => {
     setSelectedCommunityId(communityId);
     setMessages([]);
@@ -580,7 +609,10 @@ export default function SocietyChatPage() {
               : ""}
           </div>
 
-          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto rounded-md border bg-muted/20 p-3">
+          <div
+            ref={messagesScrollRef}
+            className="min-h-0 flex-1 space-y-2 overflow-y-auto rounded-md border bg-muted/20 p-3"
+          >
             {messages.length === 0 && (
               <p className="text-sm text-muted-foreground">No messages yet. Start the conversation.</p>
             )}

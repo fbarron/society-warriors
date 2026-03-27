@@ -1,7 +1,9 @@
 import { Suspense } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { Bell, BellOff } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,6 +27,24 @@ type MembershipRow = {
 type UserRow = {
   id: string;
   name: string | null;
+};
+
+type CommunityPost = {
+  id: string;
+  content: string;
+  created_at: string;
+  image_metadata?: Array<{
+    url: string;
+    path: string;
+    mime_type: string;
+    size_bytes: number;
+    filename: string;
+  }> | null;
+  user: {
+    id: string;
+    name: string | null;
+    avatar_url: string | null;
+  } | null;
 };
 
 async function getActorPermissions(communityId: string, actorId: string) {
@@ -273,6 +293,58 @@ async function leaveCommunity(formData: FormData) {
   revalidatePath(`/communities/${communityId}`);
 }
 
+async function updatePostNotifications(formData: FormData) {
+  "use server";
+
+  const communityId = String(formData.get("communityId") ?? "").trim();
+  const enabledRaw = String(formData.get("enabled") ?? "true").trim().toLowerCase();
+  const enabled = enabledRaw === "true";
+
+  if (!communityId) {
+    return;
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return;
+  }
+
+  const { isCreator, myRole } = await getActorPermissions(communityId, user.id);
+  const isAdminRole = isCreator || myRole === "owner" || myRole === "admin";
+
+  if (isAdminRole) {
+    return;
+  }
+
+  const { data: activeMembership } = await supabase
+    .from("community_memberships")
+    .select("user_id")
+    .eq("community_id", communityId)
+    .eq("user_id", user.id)
+    .eq("status", "active")
+    .single();
+
+  if (!activeMembership) {
+    return;
+  }
+
+  await supabase.from("community_notification_preferences").upsert(
+    {
+      community_id: communityId,
+      user_id: user.id,
+      enabled,
+    },
+    { onConflict: "community_id,user_id" },
+  );
+
+  revalidatePath("/communities");
+  revalidatePath(`/communities/${communityId}`);
+}
+
 function toCommunityDetail(raw: Record<string, unknown>): CommunityDetail {
   return {
     id: String(raw.id ?? ""),
@@ -331,11 +403,41 @@ async function CommunityDetailContent({ communityId }: { communityId: string }) 
   const canEditCommunity =
     isCreator || myRole === "owner" || myRole === "admin" || myRole === "moderator";
   const canManageMembers = isCreator || myRole === "owner" || myRole === "admin";
+  const isAdminRole = isCreator || myRole === "owner" || myRole === "admin";
+  const canViewFeed = community.privacy === "public" || isMember || canEditCommunity;
   const { count: pendingPostsCount } = await supabase
     .from("posts")
     .select("id", { count: "exact", head: true })
     .eq("community_id", community.id)
     .eq("status", "pending");
+
+  const { data: postsData } = canViewFeed
+    ? await supabase
+        .from("posts")
+        .select(
+          "id, content, created_at, image_metadata, user:users(id, name, avatar_url)",
+        )
+        .eq("community_id", community.id)
+        .eq("status", "approved")
+        .order("created_at", { ascending: false })
+        .limit(50)
+    : { data: [] as CommunityPost[] };
+
+  const communityPosts = (postsData ?? []) as unknown as CommunityPost[];
+
+  let postNotificationsEnabled = true;
+  if (user && isMember && !isAdminRole) {
+    const { data: preference } = await supabase
+      .from("community_notification_preferences")
+      .select("enabled")
+      .eq("community_id", community.id)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (typeof preference?.enabled === "boolean") {
+      postNotificationsEnabled = preference.enabled;
+    }
+  }
 
   return (
     <Card>
@@ -352,165 +454,304 @@ async function CommunityDetailContent({ communityId }: { communityId: string }) 
         <CardContent className="space-y-5">
           <p className="text-sm">{community.description}</p>
 
-          {canManageMembers && (
-            <Card className="border-dashed">
-              <CardHeader>
-                <CardTitle className="text-base">Admin Actions</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap items-center gap-3">
-                  <Button asChild>
-                    <Link href={`/communities/${community.id}/admin/pending-posts`}>
-                      Pending Approvals ({pendingPostsCount ?? 0})
-                    </Link>
-                  </Button>
-                  <p className="text-xs text-muted-foreground">
-                    Review and approve member posts awaiting moderation.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {canEditCommunity && (
-            <Card className="border-dashed">
-              <CardHeader>
-                <CardTitle className="text-base">Edit society</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <form action={updateCommunity} className="space-y-3">
-                  <input type="hidden" name="communityId" value={community.id} />
-
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium" htmlFor="name">
-                      Name
-                    </label>
-                    <input
-                      id="name"
-                      name="name"
-                      defaultValue={community.name}
-                      required
-                      className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium" htmlFor="description">
-                      Description
-                    </label>
-                    <textarea
-                      id="description"
-                      name="description"
-                      defaultValue={community.description}
-                      rows={3}
-                      className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-                    />
-                  </div>
-
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="space-y-1">
-                      <label className="text-sm font-medium" htmlFor="category">
-                        Category
-                      </label>
-                      <input
-                        id="category"
-                        name="category"
-                        defaultValue={community.category}
-                        className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-sm font-medium" htmlFor="privacy">
-                        Privacy
-                      </label>
-                      <select
-                        id="privacy"
-                        name="privacy"
-                        defaultValue={community.privacy}
-                        className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-                      >
-                        <option value="public">Public</option>
-                        <option value="private">Private</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <Button type="submit" variant="secondary">
-                    Save changes
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
-          )}
-
-          {canManageMembers && (
-            <Card className="border-dashed">
-              <CardHeader>
-                <CardTitle className="text-base">Manage members</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {activeMemberships.map((member) => {
-                    const isMe = user?.id === member.user_id;
-                    const displayName =
-                      usersById.get(member.user_id) ||
-                      (isMe ? "You" : `User ${member.user_id.slice(0, 8)}`);
-                    const targetRole = member.role || "member";
-                    const canModifyRole =
-                      !isMe &&
-                      (((isCreator || myRole === "owner") && targetRole !== "owner") ||
-                        (myRole === "admin" && targetRole !== "owner" && targetRole !== "admin"));
+          <Card className="border-dashed">
+            <CardHeader>
+              <CardTitle className="text-base">Society feed</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {!canViewFeed ? (
+                <p className="text-sm text-muted-foreground">
+                  This society is private. Join to view posts.
+                </p>
+              ) : communityPosts.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No posts yet in this society.</p>
+              ) : (
+                <div className="max-h-[38rem] space-y-4 overflow-y-auto pr-4">
+                  {communityPosts.map((post) => {
+                    const authorName = post.user?.name || `User ${post.user?.id?.slice(0, 8) || "unknown"}`;
+                    const authorAvatarUrl = post.user?.avatar_url || null;
 
                     return (
-                      <div
-                        key={member.user_id}
-                        className="flex flex-col gap-2 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between"
-                      >
-                        <div>
-                          <p className="text-sm font-medium">{displayName}</p>
-                          <p className="text-xs text-muted-foreground">{member.user_id}</p>
+                      <article key={post.id} className="rounded-md border bg-background p-4">
+                        <div className="mb-3 flex items-center gap-3">
+                          <div className="h-9 w-9 overflow-hidden rounded-full bg-muted">
+                            {authorAvatarUrl ? (
+                              <Image
+                                src={authorAvatarUrl}
+                                alt={authorName}
+                                width={36}
+                                height={36}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-muted-foreground">
+                                {authorName.charAt(0).toUpperCase()}
+                              </div>
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold">{authorName}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(post.created_at).toLocaleString()}
+                            </p>
+                          </div>
                         </div>
 
-                        {isMe ? (
-                          <Badge variant="outline">{targetRole}</Badge>
-                        ) : canModifyRole ? (
-                          <div className="flex items-center gap-2">
-                            <form action={updateMemberRole} className="flex items-center gap-2">
-                              <input type="hidden" name="communityId" value={community.id} />
-                              <input type="hidden" name="memberUserId" value={member.user_id} />
-                              <select
-                                name="role"
-                                defaultValue={targetRole}
-                                className="rounded-md border bg-background px-2 py-1 text-sm"
-                              >
-                                <option value="member">member</option>
-                                <option value="moderator">moderator</option>
-                                {(isCreator || myRole === "owner") && <option value="admin">admin</option>}
-                              </select>
-                              <Button size="sm" type="submit" variant="secondary">
-                                Update role
-                              </Button>
-                            </form>
+                        <p className="whitespace-pre-wrap text-sm">{post.content}</p>
 
-                            <form action={removeMember}>
-                              <input type="hidden" name="communityId" value={community.id} />
-                              <input type="hidden" name="memberUserId" value={member.user_id} />
-                              <Button size="sm" type="submit" variant="outline">
-                                Remove
-                              </Button>
-                            </form>
+                        {post.image_metadata && post.image_metadata.length > 0 && (
+                          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                            {post.image_metadata.map((image) => (
+                              <a
+                                key={image.path}
+                                href={image.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="rounded-md border bg-muted/30 p-1"
+                              >
+                                <Image
+                                  src={image.url}
+                                  alt={image.filename || "Post image"}
+                                  width={260}
+                                  height={180}
+                                  className="h-auto max-h-48 w-full object-contain"
+                                />
+                              </a>
+                            ))}
                           </div>
-                        ) : (
-                          <Badge variant="outline">{targetRole}</Badge>
                         )}
-                      </div>
+                      </article>
                     );
                   })}
                 </div>
-              </CardContent>
-            </Card>
+              )}
+            </CardContent>
+          </Card>
+
+          {(canManageMembers || canEditCommunity) && (
+            <details className="rounded-lg border border-dashed">
+              <summary className="cursor-pointer px-4 py-3 text-sm font-semibold">
+                Admin controls (click to expand/collapse)
+              </summary>
+
+              <div className="space-y-4 px-4 pb-4">
+                {canManageMembers && (
+                  <Card className="border-dashed">
+                    <CardHeader>
+                      <CardTitle className="text-base">Admin actions</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <Button asChild>
+                          <Link href={`/communities/${community.id}/admin/pending-posts`}>
+                            Pending Approvals ({pendingPostsCount ?? 0})
+                          </Link>
+                        </Button>
+                        <p className="text-xs text-muted-foreground">
+                          Review and approve member posts awaiting moderation.
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {canEditCommunity && (
+                  <Card className="border-dashed">
+                    <CardHeader>
+                      <CardTitle className="text-base">Edit society</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <form action={updateCommunity} className="space-y-3">
+                        <input type="hidden" name="communityId" value={community.id} />
+
+                        <div className="space-y-1">
+                          <label className="text-sm font-medium" htmlFor="name">
+                            Name
+                          </label>
+                          <input
+                            id="name"
+                            name="name"
+                            defaultValue={community.name}
+                            required
+                            className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-sm font-medium" htmlFor="description">
+                            Description
+                          </label>
+                          <textarea
+                            id="description"
+                            name="description"
+                            defaultValue={community.description}
+                            rows={3}
+                            className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                          />
+                        </div>
+
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div className="space-y-1">
+                            <label className="text-sm font-medium" htmlFor="category">
+                              Category
+                            </label>
+                            <input
+                              id="category"
+                              name="category"
+                              defaultValue={community.category}
+                              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-sm font-medium" htmlFor="privacy">
+                              Privacy
+                            </label>
+                            <select
+                              id="privacy"
+                              name="privacy"
+                              defaultValue={community.privacy}
+                              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                            >
+                              <option value="public">Public</option>
+                              <option value="private">Private</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <Button type="submit" variant="secondary">
+                          Save changes
+                        </Button>
+                      </form>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {canManageMembers && (
+                  <Card className="border-dashed">
+                    <CardHeader>
+                      <CardTitle className="text-base">Manage members</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {activeMemberships.map((member) => {
+                          const isMe = user?.id === member.user_id;
+                          const displayName =
+                            usersById.get(member.user_id) ||
+                            (isMe ? "You" : `User ${member.user_id.slice(0, 8)}`);
+                          const targetRole = member.role || "member";
+                          const canModifyRole =
+                            !isMe &&
+                            (((isCreator || myRole === "owner") && targetRole !== "owner") ||
+                              (myRole === "admin" && targetRole !== "owner" && targetRole !== "admin"));
+
+                          return (
+                            <div
+                              key={member.user_id}
+                              className="flex flex-col gap-2 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between"
+                            >
+                              <div>
+                                <p className="text-sm font-medium">{displayName}</p>
+                                <p className="text-xs text-muted-foreground">{member.user_id}</p>
+                              </div>
+
+                              {isMe ? (
+                                <Badge variant="outline">{targetRole}</Badge>
+                              ) : canModifyRole ? (
+                                <div className="flex items-center gap-2">
+                                  <form action={updateMemberRole} className="flex items-center gap-2">
+                                    <input type="hidden" name="communityId" value={community.id} />
+                                    <input type="hidden" name="memberUserId" value={member.user_id} />
+                                    <select
+                                      name="role"
+                                      defaultValue={targetRole}
+                                      className="rounded-md border bg-background px-2 py-1 text-sm"
+                                    >
+                                      <option value="member">member</option>
+                                      <option value="moderator">moderator</option>
+                                      {(isCreator || myRole === "owner") && <option value="admin">admin</option>}
+                                    </select>
+                                    <Button size="sm" type="submit" variant="secondary">
+                                      Update role
+                                    </Button>
+                                  </form>
+
+                                  <form action={removeMember}>
+                                    <input type="hidden" name="communityId" value={community.id} />
+                                    <input type="hidden" name="memberUserId" value={member.user_id} />
+                                    <Button size="sm" type="submit" variant="outline">
+                                      Remove
+                                    </Button>
+                                  </form>
+                                </div>
+                              ) : (
+                                <Badge variant="outline">{targetRole}</Badge>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            </details>
           )}
+
+          <Card className="border-dashed">
+            <CardHeader>
+              <CardTitle className="text-base">Post notifications</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {!user ? (
+                <p className="text-sm text-muted-foreground">Log in to manage post notifications.</p>
+              ) : !isMember ? (
+                <p className="text-sm text-muted-foreground">Join this society to manage post notifications.</p>
+              ) : isAdminRole ? (
+                <p className="text-sm text-muted-foreground">
+                  As an admin, post notifications are always enabled for this society.
+                </p>
+              ) : (
+                <form action={updatePostNotifications} className="flex items-center justify-between gap-4">
+                  <input type="hidden" name="communityId" value={community.id} />
+                  <input
+                    type="hidden"
+                    name="enabled"
+                    value={postNotificationsEnabled ? "false" : "true"}
+                  />
+
+                  <div className="flex items-center gap-2">
+                    {postNotificationsEnabled ? (
+                      <Bell className="h-4 w-4 text-amber-500" />
+                    ) : (
+                      <BellOff className="h-4 w-4 text-muted-foreground" />
+                    )}
+                    <span className="text-sm">
+                      Post notifications {postNotificationsEnabled ? "on" : "off"}
+                    </span>
+                  </div>
+
+                  <button
+                    type="submit"
+                    role="switch"
+                    aria-checked={postNotificationsEnabled}
+                    aria-label={postNotificationsEnabled ? "Disable post notifications" : "Enable post notifications"}
+                    className={`relative inline-flex h-7 w-12 items-center rounded-full border transition-colors ${
+                      postNotificationsEnabled
+                        ? "border-primary bg-primary/90"
+                        : "border-muted-foreground/30 bg-muted"
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                        postNotificationsEnabled ? "translate-x-6" : "translate-x-1"
+                      }`}
+                    />
+                  </button>
+                </form>
+              )}
+            </CardContent>
+          </Card>
 
           {!user && (
             <p className="text-sm text-muted-foreground">Log in to join this society.</p>

@@ -96,21 +96,49 @@ export async function POST(request: NextRequest) {
       const newPost = postData[0] as any;
       const { data: members } = await supabase
         .from("community_memberships")
-        .select("user_id")
+        .select("user_id, role")
         .eq("community_id", communityId)
+        .eq("status", "active")
         .neq("user_id", user.id);
 
       if (members && members.length > 0) {
-        const notifications = members.map((member) => ({
-          user_id: member.user_id,
-          actor_id: user.id,
-          action_type: "post_created_in_society",
-          target_id: newPost.id,
-          target_type: "post",
-          message: `${newPost.user.name} posted in ${newPost.community.name}`,
-        }));
+        const recipientIds = members.map((member) => member.user_id);
+        const { data: preferences } = await supabase
+          .from("community_notification_preferences")
+          .select("user_id, enabled")
+          .eq("community_id", communityId)
+          .in("user_id", recipientIds);
 
-        await supabase.from("notifications").insert(notifications);
+        const preferenceByUserId = new Map<string, boolean>();
+        (preferences || []).forEach((preference: { user_id: string; enabled: boolean }) => {
+          preferenceByUserId.set(preference.user_id, preference.enabled);
+        });
+
+        const notifications = members
+          .filter((member) => {
+            const isAdminRecipient = member.role === "owner" || member.role === "admin";
+            if (isAdminRecipient) {
+              return true;
+            }
+
+            if (preferenceByUserId.has(member.user_id)) {
+              return Boolean(preferenceByUserId.get(member.user_id));
+            }
+
+            return true;
+          })
+          .map((member) => ({
+            user_id: member.user_id,
+            actor_id: user.id,
+            action_type: "post_created_in_society",
+            target_id: newPost.id,
+            target_type: "post",
+            message: `${newPost.user.name} posted in ${newPost.community.name}`,
+          }));
+
+        if (notifications.length > 0) {
+          await supabase.from("notifications").insert(notifications);
+        }
       }
     } else if (!userIsAdmin && postData && postData.length > 0) {
       const newPost = postData[0] as any;
