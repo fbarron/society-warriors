@@ -144,6 +144,10 @@ export default function SocietyChatPage() {
   const [pollQuestion, setPollQuestion] = useState("");
   const [pollOptions, setPollOptions] = useState<string[]>(["", ""]);
   const [votingMessageId, setVotingMessageId] = useState<number | null>(null);
+  const [translatedMessages, setTranslatedMessages] = useState<Record<number, string>>({});
+  const [translatableMessages, setTranslatableMessages] = useState<Record<number, boolean>>({});
+  const [prefetchedTranslations, setPrefetchedTranslations] = useState<Record<number, string>>({});
+  const [translatingMessageId, setTranslatingMessageId] = useState<number | null>(null);
 
   const channelRef = useRef<RealtimeChannel | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -274,6 +278,84 @@ export default function SocietyChatPage() {
 
     fetchInitialData();
   }, []);
+
+  useEffect(() => {
+    setTranslatedMessages({});
+    setTranslatableMessages({});
+    setPrefetchedTranslations({});
+    setTranslatingMessageId(null);
+  }, [selectedCommunityId]);
+
+  useEffect(() => {
+    const candidates = messages
+      .filter((message) => !parsePollFromContent(message.content))
+      .filter((message) => message.content.trim().length > 0)
+      .filter((message) => translatableMessages[message.id] === undefined)
+      .map((message) => ({ id: message.id, text: message.content }));
+
+    if (candidates.length === 0) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const detectTranslatableMessages = async () => {
+      try {
+        const response = await fetch("/api/translate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ detectOnly: true, messages: candidates }),
+        });
+
+        const data = await response.json();
+        if (!response.ok || !Array.isArray(data.results) || cancelled) {
+          return;
+        }
+
+        setTranslatableMessages((prev) => {
+          const next = { ...prev };
+          for (const result of data.results as Array<{
+            id: number;
+            alreadyEnglish: boolean;
+            translatedText: string | null;
+          }>) {
+            next[result.id] = !result.alreadyEnglish;
+          }
+          return next;
+        });
+
+        setPrefetchedTranslations((prev) => {
+          const next = { ...prev };
+          for (const result of data.results as Array<{
+            id: number;
+            alreadyEnglish: boolean;
+            translatedText: string | null;
+          }>) {
+            if (!result.alreadyEnglish && typeof result.translatedText === "string") {
+              next[result.id] = result.translatedText;
+            }
+          }
+          return next;
+        });
+      } catch {
+        if (!cancelled) {
+          setTranslatableMessages((prev) => {
+            const next = { ...prev };
+            for (const candidate of candidates) {
+              next[candidate.id] = false;
+            }
+            return next;
+          });
+        }
+      }
+    };
+
+    void detectTranslatableMessages();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [messages, translatableMessages]);
 
   useEffect(() => {
     if (!selectedCommunityId || !currentUserId) {
@@ -714,6 +796,62 @@ export default function SocietyChatPage() {
     }
   };
 
+  const handleTranslate = async (messageId: number, content: string) => {
+    if (translatedMessages[messageId] !== undefined) {
+      // Toggle off — remove translation
+      setTranslatedMessages((prev) => {
+        const next = { ...prev };
+        delete next[messageId];
+        return next;
+      });
+      return;
+    }
+
+    if (prefetchedTranslations[messageId]) {
+      setTranslatedMessages((prev) => ({ ...prev, [messageId]: prefetchedTranslations[messageId] }));
+      return;
+    }
+
+    try {
+      setTranslatingMessageId(messageId);
+      const response = await fetch("/api/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: content }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        if (data.error === "Missing DEEPL_API_KEY") {
+          setTranslatedMessages((prev) => ({
+            ...prev,
+            [messageId]: "Translation unavailable — no API key configured",
+          }));
+          return;
+        }
+        throw new Error(data.error || "Translation failed");
+      }
+
+      if (data.alreadyEnglish) {
+        setTranslatableMessages((prev) => ({ ...prev, [messageId]: false }));
+        return;
+      }
+
+      const result =
+        typeof data.translatedText === "string" && data.translatedText.trim().length > 0
+          ? data.translatedText
+          : "Translation unavailable";
+
+      setPrefetchedTranslations((prev) =>
+        result !== "Translation unavailable" ? { ...prev, [messageId]: result } : prev
+      );
+      setTranslatedMessages((prev) => ({ ...prev, [messageId]: result }));
+    } catch {
+      setTranslatedMessages((prev) => ({ ...prev, [messageId]: "Translation unavailable" }));
+    } finally {
+      setTranslatingMessageId(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -872,7 +1010,30 @@ export default function SocietyChatPage() {
                         </p>
                       </div>
                     ) : (
-                      <p className="whitespace-pre-wrap break-words">{message.content}</p>
+                      <>
+                        <p className="whitespace-pre-wrap break-words">{message.content}</p>
+                        {(translatableMessages[message.id] || translatedMessages[message.id] !== undefined) && (
+                          <div className="mt-1">
+                            <button
+                              type="button"
+                              onClick={() => handleTranslate(message.id, message.content)}
+                              disabled={translatingMessageId === message.id}
+                              className="text-[11px] text-blue-500 hover:underline disabled:opacity-50"
+                            >
+                              {translatingMessageId === message.id
+                                ? "Translating..."
+                                : translatedMessages[message.id] !== undefined
+                                  ? "Hide translation"
+                                  : "Translate"}
+                            </button>
+                            {translatedMessages[message.id] !== undefined && (
+                              <p className="mt-1 rounded border-l-2 border-blue-300 bg-blue-50/60 px-2 py-1 text-xs italic text-muted-foreground">
+                                {translatedMessages[message.id]}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </>
                     )}
                     {message.attachment_url && (
                       <div className="mt-2">
