@@ -46,6 +46,8 @@ type Post = {
   comments?: Comment[];
 };
 
+const DEFAULT_AVATAR_URL = "/default-avatar.svg";
+
 const mergeUniquePosts = (existingPosts: Post[], incomingPosts: Post[]) => {
   const postMap = new Map<string, Post>();
 
@@ -374,17 +376,13 @@ export default function SocialFeedPage() {
                     className="inline-flex items-center gap-3 rounded-md hover:bg-gray-100 px-2 py-1"
                   >
                     <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200">
-                      {post.user?.avatar_url ? (
-                        <Image
-                          src={post.user.avatar_url}
-                          alt={post.user?.name || "User"}
-                          width={40}
-                          height={40}
-                          className="object-cover w-full h-full"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-gray-300" />
-                      )}
+                      <Image
+                        src={post.user?.avatar_url || DEFAULT_AVATAR_URL}
+                        alt={post.user?.name || "User"}
+                        width={40}
+                        height={40}
+                        className="object-cover w-full h-full"
+                      />
                     </div>
                     <div>
                       <div className="font-semibold text-base">
@@ -451,17 +449,13 @@ export default function SocialFeedPage() {
                           className="flex items-start gap-2 bg-gray-50 rounded p-2"
                         >
                           <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-200">
-                            {comment.user?.avatar_url ? (
-                              <Image
-                                src={comment.user.avatar_url}
-                                alt={comment.user?.name || "User"}
-                                width={32}
-                                height={32}
-                                className="object-cover w-full h-full"
-                              />
-                            ) : (
-                              <div className="w-full h-full bg-gray-300" />
-                            )}
+                            <Image
+                              src={comment.user?.avatar_url || DEFAULT_AVATAR_URL}
+                              alt={comment.user?.name || "User"}
+                              width={32}
+                              height={32}
+                              className="object-cover w-full h-full"
+                            />
                           </div>
                           <div className="flex-1">
                             <div className="font-semibold text-sm">
@@ -480,17 +474,13 @@ export default function SocialFeedPage() {
                       className="flex gap-2 items-center"
                     >
                       <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
-                        {currentUser?.avatar_url ? (
-                          <Image
-                            src={currentUser.avatar_url}
-                            alt={currentUser?.name || "avatar"}
-                            width={32}
-                            height={32}
-                            className="object-cover w-full h-full"
-                          />
-                        ) : (
-                          <div className="w-full h-full bg-gray-300" />
-                        )}
+                        <Image
+                          src={currentUser?.avatar_url || DEFAULT_AVATAR_URL}
+                          alt={currentUser?.name || "avatar"}
+                          width={32}
+                          height={32}
+                          className="object-cover w-full h-full"
+                        />
                       </div>
                       <input
                         type="text"

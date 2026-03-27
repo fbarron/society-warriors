@@ -151,7 +151,7 @@ export default function ProfilePage() {
       <div className="flex flex-col items-center bg-white rounded-xl shadow p-8 mb-8">
         <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-200 mb-4">
           <img
-            src={profile.avatar_url || "/default-avatar.png"}
+            src={profile.avatar_url || "/default-avatar.svg"}
             alt={profile.name}
             className="object-cover w-full h-full"
           />

@@ -47,6 +47,8 @@ type CommunityPost = {
   } | null;
 };
 
+const DEFAULT_AVATAR_URL = "/default-avatar.svg";
+
 async function getActorPermissions(communityId: string, actorId: string) {
   const supabase = await createClient();
   const { data: community } = await supabase
@@ -123,25 +125,19 @@ async function updateMemberRole(formData: FormData) {
 
   const communityId = String(formData.get("communityId") ?? "").trim();
   const memberUserId = String(formData.get("memberUserId") ?? "").trim();
-  const nextRoleRaw = String(formData.get("role") ?? "member").trim().toLowerCase();
+                    const authorAvatarUrl = post.user?.avatar_url || DEFAULT_AVATAR_URL;
   const nextRole =
     nextRoleRaw === "admin" || nextRoleRaw === "moderator" ? nextRoleRaw : "member";
 
   if (!communityId || !memberUserId) {
     return;
-  }
-
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user || user.id === memberUserId) {
-    return;
-  }
-
-  const { isCreator, myRole } = await getActorPermissions(communityId, user.id);
-  if (!isCreator && myRole !== "owner" && myRole !== "admin") {
+                            <Image
+                              src={authorAvatarUrl}
+                              alt={authorName}
+                              width={36}
+                              height={36}
+                              className="h-full w-full object-cover"
+                            />
     return;
   }
 

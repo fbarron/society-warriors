@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PostApprovalBadge } from "@/components/post-approval-badge";
+
+const DEFAULT_AVATAR_URL = "/default-avatar.svg";
 import { Check, X, Loader2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -134,17 +136,13 @@ export default function PendingPostsPage({
           {posts.map((post) => (
             <Card key={post.id} className="p-6">
               <div className="flex gap-4 mb-4">
-                {post.user.avatar_url ? (
-                  <Image
-                    src={post.user.avatar_url}
-                    alt={post.user.name}
-                    width={48}
-                    height={48}
-                    className="rounded-full"
-                  />
-                ) : (
-                  <div className="w-12 h-12 rounded-full bg-gray-200" />
-                )}
+                <Image
+                  src={post.user.avatar_url || DEFAULT_AVATAR_URL}
+                  alt={post.user.name}
+                  width={48}
+                  height={48}
+                  className="rounded-full"
+                />
                 <div className="flex-1">
                   <div className="flex items-center justify-between gap-4">
                     <div>

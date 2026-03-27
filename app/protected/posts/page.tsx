@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import Image from "next/image";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -52,6 +53,7 @@ type ParsedPoll = {
 const supabase = createClient();
 
 const MAX_ATTACHMENT_SIZE_BYTES = 2 * 1024 * 1024;
+const DEFAULT_AVATAR_URL = "/default-avatar.svg";
 const ALLOWED_ATTACHMENT_TYPES = [
   "application/pdf",
   "text/plain",
@@ -944,13 +946,18 @@ export default function SocietyChatPage() {
               const memberForMessage = members.find((member) => member.user_id === message.user_id);
               const senderName =
                 message.user?.name || memberForMessage?.user?.name || message.user_id.slice(0, 8);
-              const senderAvatarUrl = message.user?.avatar_url || memberForMessage?.user?.avatar_url || null;
+              const senderAvatarUrl =
+                message.user?.avatar_url || memberForMessage?.user?.avatar_url || DEFAULT_AVATAR_URL;
+              const senderProfileId = message.user?.id || memberForMessage?.user?.id || null;
               const parsedPoll = parsePollFromContent(message.content);
 
               return (
                 <div key={message.id} className="flex max-w-[95%] items-start gap-2">
-                  <div className="h-8 w-8 shrink-0 overflow-hidden rounded-full bg-muted">
-                    {senderAvatarUrl ? (
+                  {senderProfileId ? (
+                    <Link
+                      href={`/profile/${senderProfileId}`}
+                      className="h-8 w-8 shrink-0 overflow-hidden rounded-full bg-muted"
+                    >
                       <Image
                         src={senderAvatarUrl}
                         alt={senderName}
@@ -958,15 +965,30 @@ export default function SocietyChatPage() {
                         height={32}
                         className="h-full w-full object-cover"
                       />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-muted-foreground">
-                        {senderName.charAt(0).toUpperCase()}
-                      </div>
-                    )}
-                  </div>
+                    </Link>
+                  ) : (
+                    <div className="h-8 w-8 shrink-0 overflow-hidden rounded-full bg-muted">
+                      <Image
+                        src={senderAvatarUrl}
+                        alt={senderName}
+                        width={32}
+                        height={32}
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                  )}
 
                   <div className="rounded-lg border bg-background px-3 py-2 text-sm">
-                    <p className="mb-1 text-xs font-semibold text-muted-foreground">{senderName}</p>
+                    {senderProfileId ? (
+                      <Link
+                        href={`/profile/${senderProfileId}`}
+                        className="mb-1 block w-fit text-xs font-semibold text-muted-foreground hover:underline"
+                      >
+                        {senderName}
+                      </Link>
+                    ) : (
+                      <p className="mb-1 text-xs font-semibold text-muted-foreground">{senderName}</p>
+                    )}
                     {parsedPoll ? (
                       <div className="space-y-2">
                         <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">Poll</p>
@@ -1207,15 +1229,13 @@ export default function SocietyChatPage() {
             {members.map((member) => (
               <div key={member.user_id} className="flex items-center gap-2 rounded-md border p-2">
                 <div className="h-8 w-8 overflow-hidden rounded-full bg-muted">
-                  {member.user?.avatar_url ? (
-                    <Image
-                      src={member.user.avatar_url}
-                      alt={member.user?.name || "Member"}
-                      width={32}
-                      height={32}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : null}
+                  <Image
+                    src={member.user?.avatar_url || DEFAULT_AVATAR_URL}
+                    alt={member.user?.name || "Member"}
+                    width={32}
+                    height={32}
+                    className="h-full w-full object-cover"
+                  />
                 </div>
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium">

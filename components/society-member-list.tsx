@@ -10,6 +10,9 @@ import {
 import { MoreVertical, Trash2, Shield } from "lucide-react";
 import Image from "next/image";
 
+
+const DEFAULT_AVATAR_URL = "/default-avatar.svg";
+
 interface Member {
   id: string;
   user: {
@@ -31,17 +34,13 @@ interface SocietyMemberListProps {
 
 export function SocietyMemberList({
   members,
-  currentUserRole = "member",
-  communityId,
-  onMemberRemoved,
-  onRoleChanged,
-}: SocietyMemberListProps) {
-  const [loading, setLoading] = useState<string | null>(null);
-
-  const canManageMembers = currentUserRole === "owner" || currentUserRole === "admin";
-
-  const handleRemoveMember = async (memberId: string) => {
-    if (!canManageMembers) return;
+              <Image
+                src={member.user.avatar_url || DEFAULT_AVATAR_URL}
+                alt={member.user.name}
+                width={40}
+                height={40}
+                className="rounded-full"
+              />
     if (!confirm("Are you sure you want to remove this member?")) return;
 
     setLoading(memberId);
