@@ -4,6 +4,7 @@ import { Suspense } from 'react';
 import { Button } from './ui/button';
 import { createClient } from '@/lib/supabase/server';
 import { LogoutButton } from './logout-button';
+import { NotificationsDropdown } from './notifications-dropdown';
 
 function HeaderAuthFallback() {
   return (
@@ -33,6 +34,11 @@ async function HeaderAuthActions() {
       <Link href="/protected">
         <Button className="bg-[hsl(var(--login-btn))] text-primary-foreground hover:bg-secondary border border-border">
           Feed
+        </Button>
+      </Link>
+      <Link href="/protected/posts">
+        <Button className="bg-[hsl(var(--login-btn))] text-primary-foreground hover:bg-secondary border border-border">
+          Chat
         </Button>
       </Link>
       <Link href="/profile">
@@ -67,6 +73,7 @@ export default function Header() {
         </div>
 
         <div className="flex items-center gap-2">
+          <NotificationsDropdown />
           <Suspense fallback={<HeaderAuthFallback />}>
             <HeaderAuthActions />
           </Suspense>

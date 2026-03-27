@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 
 // Types
@@ -16,6 +17,13 @@ type Post = {
   id: number;
   content: string;
   created_at: string;
+  image_metadata?: Array<{
+    url: string;
+    path: string;
+    mime_type: string;
+    size_bytes: number;
+    filename: string;
+  }>;
   comments?: { id: number; content: string; created_at: string }[];
 };
 
@@ -60,7 +68,7 @@ export default function ProfilePage() {
       // Fetch user's posts
       const { data: postsData } = await supabase
         .from("posts")
-        .select("id, content, created_at, comments(id, content, created_at)")
+        .select("id, content, created_at, image_metadata, comments(id, content, created_at)")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
       setPosts(postsData || []);
@@ -204,32 +212,55 @@ export default function ProfilePage() {
         {posts.length === 0 ? (
           <div className="text-gray-500">You haven't posted anything yet.</div>
         ) : (
-          <ul className="flex flex-col gap-4">
-            {posts.map((post) => (
-              <li key={post.id} className="border-b pb-3">
-                <div className="font-semibold text-lg mb-1">{post.content}</div>
-                <div className="text-xs text-gray-500 mb-1">{new Date(post.created_at).toLocaleString()}</div>
-                <button
-                  className="text-blue-600 text-sm font-medium mb-1 focus:outline-none"
-                  onClick={() => toggleComments(post.id)}
-                >
-                  {showComments[post.id] ? "Hide Comments" : `Show Comments (${post.comments?.length || 0})`}
-                </button>
-                {showComments[post.id] && (
-                  <div className="ml-2">
-                    <span className="font-bold text-sm">Comments:</span>
-                    <ul className="ml-2 mt-1">
-                      {(post.comments || []).map((c) => (
-                        <li key={c.id} className="text-sm text-gray-700 border-b last:border-b-0 py-1">
-                          {c.content}
-                        </li>
+          <div className="max-h-[30rem] overflow-y-auto pr-4">
+            <ul className="flex flex-col gap-4">
+              {posts.map((post) => (
+                <li key={post.id} className="border-b pb-3">
+                  <div className="font-semibold text-lg mb-1">{post.content}</div>
+                  {post.image_metadata && post.image_metadata.length > 0 && (
+                    <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                      {post.image_metadata.map((image) => (
+                        <a
+                          key={image.path}
+                          href={image.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="rounded-md border bg-muted/30 p-1"
+                        >
+                          <Image
+                            src={image.url}
+                            alt={image.filename || "Post image"}
+                            width={200}
+                            height={200}
+                            className="h-auto w-full object-contain"
+                          />
+                        </a>
                       ))}
-                    </ul>
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
+                    </div>
+                  )}
+                  <div className="text-xs text-gray-500 mb-1">{new Date(post.created_at).toLocaleString()}</div>
+                  <button
+                    className="text-blue-600 text-sm font-medium mb-1 focus:outline-none"
+                    onClick={() => toggleComments(post.id)}
+                  >
+                    {showComments[post.id] ? "Hide Comments" : `Show Comments (${post.comments?.length || 0})`}
+                  </button>
+                  {showComments[post.id] && (
+                    <div className="ml-2">
+                      <span className="font-bold text-sm">Comments:</span>
+                      <ul className="ml-2 mt-1">
+                        {(post.comments || []).map((c) => (
+                          <li key={c.id} className="text-sm text-gray-700 border-b last:border-b-0 py-1">
+                            {c.content}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
       </div>
     </div>

@@ -6,6 +6,13 @@
 import { createClient } from "./server";
 
 export type PostStatus = "pending" | "approved" | "rejected";
+export type PostImageMetadata = {
+  url: string;
+  path: string;
+  mime_type: string;
+  size_bytes: number;
+  filename: string;
+};
 
 // ============================================================================
 // POSTS QUERIES
@@ -15,7 +22,8 @@ export async function createPost(
   communityId: string,
   userId: string,
   content: string,
-  status: PostStatus = "pending"
+  status: PostStatus = "pending",
+  imageMetadata: PostImageMetadata[] = []
 ) {
   const client = await createClient();
   const { data, error } = await client
@@ -26,6 +34,7 @@ export async function createPost(
         user_id: userId,
         content,
         status,
+        image_metadata: imageMetadata,
         status_updated_at: new Date().toISOString(),
       },
     ])
@@ -33,6 +42,7 @@ export async function createPost(
       `
       id,
       content,
+      image_metadata,
       status,
       created_at,
       status_updated_at,
@@ -52,6 +62,7 @@ export async function getPendingPosts(communityId: string) {
       `
       id,
       content,
+      image_metadata,
       status,
       created_at,
       status_updated_at,
@@ -79,6 +90,7 @@ export async function approvePost(postId: string) {
       `
       id,
       content,
+      image_metadata,
       status,
       created_at,
       user:users(id, name, avatar_url)
@@ -101,6 +113,7 @@ export async function rejectPost(postId: string) {
       `
       id,
       content,
+      image_metadata,
       status,
       created_at,
       user:users(id, name, avatar_url)
@@ -122,6 +135,7 @@ export async function getApprovedPostsForCommunities(
       `
       id,
       content,
+      image_metadata,
       status,
       created_at,
       community:communities(id, name),

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -16,6 +17,13 @@ type Post = {
   id: number;
   content: string;
   created_at: string;
+  image_metadata?: Array<{
+    url: string;
+    path: string;
+    mime_type: string;
+    size_bytes: number;
+    filename: string;
+  }>;
 };
 
 const supabase = createClient();
@@ -45,7 +53,7 @@ export default function PublicProfilePage() {
 
       const { data: postsData } = await supabase
         .from("posts")
-        .select("id, content, created_at")
+        .select("id, content, created_at, image_metadata")
         .eq("user_id", profileId)
         .order("created_at", { ascending: false });
 
@@ -85,14 +93,37 @@ export default function PublicProfilePage() {
         {posts.length === 0 ? (
           <div className="text-gray-500">No posts yet.</div>
         ) : (
-          <ul className="flex flex-col gap-4">
-            {posts.map((post) => (
-              <li key={post.id} className="border-b last:border-b-0 pb-3 last:pb-0">
-                <div className="font-semibold text-lg mb-1">{post.content}</div>
-                <div className="text-xs text-gray-500">{new Date(post.created_at).toLocaleString()}</div>
-              </li>
-            ))}
-          </ul>
+          <div className="max-h-[30rem] overflow-y-auto pr-4">
+            <ul className="flex flex-col gap-4">
+              {posts.map((post) => (
+                <li key={post.id} className="border-b last:border-b-0 pb-3 last:pb-0">
+                  <div className="font-semibold text-lg mb-1">{post.content}</div>
+                  <div className="text-xs text-gray-500 mb-2">{new Date(post.created_at).toLocaleString()}</div>
+                  {post.image_metadata && post.image_metadata.length > 0 && (
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                      {post.image_metadata.map((image) => (
+                        <a
+                          key={image.path}
+                          href={image.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="rounded-md border bg-muted/30 p-1"
+                        >
+                          <Image
+                            src={image.url}
+                            alt={image.filename || "Post image"}
+                            width={200}
+                            height={200}
+                            className="h-auto w-full object-contain"
+                          />
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
       </div>
     </div>

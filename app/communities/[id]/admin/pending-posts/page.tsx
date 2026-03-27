@@ -12,6 +12,13 @@ import Link from "next/link";
 interface PendingPost {
   id: string;
   content: string;
+  image_metadata?: Array<{
+    url: string;
+    path: string;
+    mime_type: string;
+    size_bytes: number;
+    filename: string;
+  }>;
   status: "pending" | "approved" | "rejected";
   created_at: string;
   user: {
@@ -154,6 +161,28 @@ export default function PendingPostsPage({
               <div className="bg-gray-50 rounded-lg p-4 mb-4">
                 <p className="text-gray-800">{post.content}</p>
               </div>
+
+              {post.image_metadata && post.image_metadata.length > 0 && (
+                <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {post.image_metadata.map((image) => (
+                    <a
+                      key={image.path}
+                      href={image.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-md border bg-muted/30 p-1"
+                    >
+                      <Image
+                        src={image.url}
+                        alt={image.filename || "Pending post image"}
+                        width={420}
+                        height={320}
+                        className="h-auto max-h-[28rem] w-full object-contain"
+                      />
+                    </a>
+                  ))}
+                </div>
+              )}
 
               {post.comments.length > 0 && (
                 <div className="text-sm text-gray-500 mb-4">

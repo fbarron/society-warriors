@@ -4,7 +4,6 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { SocietyPostForm } from "@/components/society-post-form";
 import { PostApprovalBadge } from "@/components/post-approval-badge";
-import { NotificationsDropdown } from "@/components/notifications-dropdown";
 import { Card } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import Image from "next/image";
@@ -33,6 +32,13 @@ type Comment = {
 type Post = {
   id: string;
   content: string;
+  image_metadata?: Array<{
+    url: string;
+    path: string;
+    mime_type: string;
+    size_bytes: number;
+    filename: string;
+  }>;
   status: "pending" | "approved" | "rejected";
   created_at: string;
   user: User;
@@ -71,6 +77,7 @@ export default function SocialFeedPage() {
   const [selectedCommunityId, setSelectedCommunityId] = useState<string | null>(null);
   const [composeCommunityId, setComposeCommunityId] = useState<string>("");
   const loader = useRef<HTMLDivElement | null>(null);
+  const postsScrollRef = useRef<HTMLDivElement | null>(null);
   const PAGE_SIZE = 10;
   const [page, setPage] = useState<number>(0);
   const toggleComments = (postId: string) => {
@@ -143,6 +150,7 @@ export default function SocialFeedPage() {
         `
         id, 
         content, 
+        image_metadata,
         status,
         created_at, 
         user:users(id, name, avatar_url), 
@@ -186,7 +194,7 @@ export default function SocialFeedPage() {
           setPage((prev) => prev + 1);
         }
       },
-      { threshold: 1 }
+      { threshold: 1, root: postsScrollRef.current }
     );
     if (loader.current) observer.observe(loader.current);
     return () => {
@@ -264,7 +272,6 @@ export default function SocialFeedPage() {
           Your Feed
         </h1>
         <div className="flex gap-2">
-          <NotificationsDropdown />
           <Link
             href="/communities"
             className="text-blue-600 hover:underline text-sm"
@@ -350,15 +357,16 @@ export default function SocialFeedPage() {
       )}
 
       {/* Posts */}
-      <div className="flex flex-col gap-8">
-        {posts
-          .filter(
-            (post) =>
-              !selectedCommunityId ||
-              post.community.id === selectedCommunityId
-          )
-          .map((post) => (
-            <Card key={post.id} className="p-6">
+      <div ref={postsScrollRef} className="max-h-[42rem] overflow-y-auto pr-4">
+        <div className="flex flex-col gap-8">
+          {posts
+            .filter(
+              (post) =>
+                !selectedCommunityId ||
+                post.community.id === selectedCommunityId
+            )
+            .map((post) => (
+              <Card key={post.id} className="p-6">
               <div className="mb-4">
                 <div className="flex items-start justify-between mb-3">
                   <Link
@@ -398,6 +406,28 @@ export default function SocialFeedPage() {
               </div>
 
               <div className="mb-4 text-lg text-gray-900">{post.content}</div>
+
+              {post.image_metadata && post.image_metadata.length > 0 && (
+                <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {post.image_metadata.map((image) => (
+                    <a
+                      key={image.path}
+                      href={image.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-md border bg-muted/30 p-1"
+                    >
+                      <Image
+                        src={image.url}
+                        alt={image.filename || "Post image"}
+                        width={420}
+                        height={320}
+                        className="h-auto max-h-[28rem] w-full object-contain"
+                      />
+                    </a>
+                  ))}
+                </div>
+              )}
 
               {/* Comments */}
               <div className="mt-4">
@@ -484,17 +514,24 @@ export default function SocialFeedPage() {
                   </>
                 )}
               </div>
-            </Card>
-          ))}
+              </Card>
+            ))}
+        </div>
+
+        {/* Loader for infinite scroll */}
+        {hasMore && joinedCommunities.length > 0 && (
+          <div
+            ref={loader}
+            className="py-8 text-center text-gray-500"
+          >
+            {loading ? "Loading..." : "Scroll for more"}
+          </div>
+        )}
       </div>
 
-      {/* Loader for infinite scroll */}
-      {hasMore && joinedCommunities.length > 0 && (
-        <div
-          ref={loader}
-          className="py-8 text-center text-gray-500"
-        >
-          {loading ? "Loading..." : "Scroll for more"}
+      {!hasMore && posts.length > 0 && (
+        <div className="pt-3 text-center text-xs text-gray-500">
+          You reached the end of the feed.
         </div>
       )}
     </div>

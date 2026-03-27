@@ -4,21 +4,21 @@
 ## Features to Implement
 
 ### Image Upload for Posts
-- [ ] Add image upload functionality to post creation
-- [ ] Support multiple image formats (jpg, png, gif)
-- [ ] Implement image compression/optimisation
-- [ ] Add image preview before posting
-- [ ] Store images with post metadata
+- [x] Add image upload functionality to post creation
+- [x] Support multiple image formats (jpg, png, gif)
+- [x] Implement image compression/optimisation
+- [x] Add image preview before posting
+- [x] Store images with post metadata
 
 ### Group Chat - Members Only
-- [ ] Create private chat channels per society
-- [ ] Implement member-only access control
-- [ ] Add user authentication/authorisation checks
-- [ ] Display member list in chat interface
+- [x] Create private chat channels per society
+- [x] Implement member-only access control
+- [x] Add user authentication/authorisation checks
+- [x] Display member list in chat interface
 
 ### Real-time Chat
-- [ ] Integrate WebSocket support
-- [ ] Implement message delivery notifications
-- [ ] Add typing indicators
-- [ ] Ensure message sync across clients in real-time
-- [ ] Handle connection reconnection gracefully
+- [x] Integrate WebSocket support
+- [x] Implement message delivery notifications
+- [x] Add typing indicators
+- [x] Ensure message sync across clients in real-time
+- [x] Handle connection reconnection gracefully

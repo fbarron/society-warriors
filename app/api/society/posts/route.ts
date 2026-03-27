@@ -1,6 +1,14 @@
 import { createClient } from "@/lib/supabase/server";
-import { createPost, isAdmin } from "@/lib/supabase/queries";
+import { createPost } from "@/lib/supabase/queries";
 import { NextRequest, NextResponse } from "next/server";
+
+type UploadedImageMetadata = {
+  url: string;
+  path: string;
+  mime_type: string;
+  size_bytes: number;
+  filename: string;
+};
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,7 +25,25 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { communityId, content } = body;
+    const { communityId, content, imageMetadata } = body;
+    const normalizedImageMetadata: UploadedImageMetadata[] = Array.isArray(imageMetadata)
+      ? imageMetadata.filter(
+          (entry: any) =>
+            entry &&
+            typeof entry.url === "string" &&
+            typeof entry.path === "string" &&
+            typeof entry.mime_type === "string" &&
+            typeof entry.size_bytes === "number" &&
+            typeof entry.filename === "string"
+        )
+      : [];
+
+    if (normalizedImageMetadata.length > 4) {
+      return NextResponse.json(
+        { error: "Maximum of 4 images per post" },
+        { status: 400 }
+      );
+    }
 
     if (!communityId || !content || !content.trim()) {
       return NextResponse.json(
@@ -50,7 +76,8 @@ export async function POST(request: NextRequest) {
       communityId,
       user.id,
       content.trim(),
-      status
+      status,
+      normalizedImageMetadata
     );
 
     if (postError) {
