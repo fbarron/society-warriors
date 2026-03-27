@@ -8,6 +8,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, Paperclip, X } from "lucide-react";
 
+const POLL_PREFIX = "[POLL]";
+
 type Community = {
   id: string;
   name: string;
@@ -31,6 +33,8 @@ type ChatMessage = {
   attachment_file_name?: string | null;
   attachment_mime_type?: string | null;
   attachment_size_bytes?: number | null;
+  poll_vote_counts?: number[] | null;
+  poll_user_vote_index?: number | null;
   created_at: string;
   user_id: string;
   user: {
@@ -38,6 +42,11 @@ type ChatMessage = {
     name: string | null;
     avatar_url: string | null;
   } | null;
+};
+
+type ParsedPoll = {
+  question: string;
+  options: string[];
 };
 
 const supabase = createClient();
@@ -63,6 +72,54 @@ function isImageAttachment(mimeType?: string | null) {
   return Boolean(mimeType && mimeType.startsWith("image/"));
 }
 
+function parsePollFromContent(content: string): ParsedPoll | null {
+  if (!content.startsWith(POLL_PREFIX)) {
+    return null;
+  }
+
+  try {
+    const payload = JSON.parse(content.slice(POLL_PREFIX.length)) as {
+      question?: unknown;
+      options?: unknown;
+    };
+
+    const question = typeof payload.question === "string" ? payload.question.trim() : "";
+    const options = Array.isArray(payload.options)
+      ? payload.options
+          .filter((option): option is string => typeof option === "string")
+          .map((option) => option.trim())
+          .filter((option) => option.length > 0)
+      : [];
+
+    if (!question || options.length < 2) {
+      return null;
+    }
+
+    return { question, options };
+  } catch {
+    return null;
+  }
+}
+
+function normalizeMessage(message: ChatMessage): ChatMessage {
+  const poll = parsePollFromContent(message.content);
+  if (!poll) {
+    return message;
+  }
+
+  const counts =
+    Array.isArray(message.poll_vote_counts) && message.poll_vote_counts.length === poll.options.length
+      ? message.poll_vote_counts
+      : Array.from({ length: poll.options.length }, () => 0);
+
+  return {
+    ...message,
+    poll_vote_counts: counts,
+    poll_user_vote_index:
+      typeof message.poll_user_vote_index === "number" ? message.poll_user_vote_index : null,
+  };
+}
+
 export default function SocietyChatPage() {
   const [loading, setLoading] = useState(true);
   const [communities, setCommunities] = useState<Community[]>([]);
@@ -83,6 +140,10 @@ export default function SocietyChatPage() {
   const [pendingAttachment, setPendingAttachment] = useState<ChatAttachment | null>(null);
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
   const [unreadByCommunity, setUnreadByCommunity] = useState<Record<string, number>>({});
+  const [showPollComposer, setShowPollComposer] = useState(false);
+  const [pollQuestion, setPollQuestion] = useState("");
+  const [pollOptions, setPollOptions] = useState<string[]>(["", ""]);
+  const [votingMessageId, setVotingMessageId] = useState<number | null>(null);
 
   const channelRef = useRef<RealtimeChannel | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -104,7 +165,7 @@ export default function SocietyChatPage() {
       throw new Error(data.error || "Failed to load messages");
     }
 
-    setMessages(data.messages || []);
+    setMessages((data.messages || []).map((message: ChatMessage) => normalizeMessage(message)));
   };
 
   const fetchMembers = async (communityId: string) => {
@@ -261,7 +322,7 @@ export default function SocietyChatPage() {
 
             return [
               ...prev,
-              {
+              normalizeMessage({
                 id: incoming.id,
                 content: incoming.content,
                 attachment_url: incoming.attachment_url ?? null,
@@ -275,7 +336,7 @@ export default function SocietyChatPage() {
                   incoming.user_id === currentUserId
                     ? { id: currentUserId, name: currentUserName, avatar_url: null }
                     : null,
-              },
+              }),
             ];
           });
 
@@ -515,7 +576,7 @@ export default function SocietyChatPage() {
       markTyping(false);
 
       setMessages((prev) => {
-        const message = data.message as ChatMessage;
+        const message = normalizeMessage(data.message as ChatMessage);
         if (prev.some((entry) => entry.id === message.id)) {
           return prev;
         }
@@ -526,6 +587,130 @@ export default function SocietyChatPage() {
       setError(sendError instanceof Error ? sendError.message : "Failed to send message");
     } finally {
       setSending(false);
+    }
+  };
+
+  const updatePollOption = (index: number, value: string) => {
+    setPollOptions((prev) => prev.map((option, idx) => (idx === index ? value : option)));
+  };
+
+  const addPollOption = () => {
+    setPollOptions((prev) => {
+      if (prev.length >= 8) {
+        return prev;
+      }
+
+      return [...prev, ""];
+    });
+  };
+
+  const removePollOption = (index: number) => {
+    setPollOptions((prev) => {
+      if (prev.length <= 2) {
+        return prev;
+      }
+
+      return prev.filter((_, idx) => idx !== index);
+    });
+  };
+
+  const resetPollComposer = () => {
+    setPollQuestion("");
+    setPollOptions(["", ""]);
+    setShowPollComposer(false);
+  };
+
+  const handleCreatePoll = async () => {
+    if (!selectedCommunityId) {
+      setError("Select a channel before creating a poll.");
+      return;
+    }
+
+    const trimmedQuestion = pollQuestion.trim();
+    const trimmedOptions = pollOptions.map((option) => option.trim()).filter((option) => option.length > 0);
+
+    if (!trimmedQuestion || trimmedOptions.length < 2) {
+      setError("Poll needs a question and at least two options.");
+      return;
+    }
+
+    try {
+      setSending(true);
+      setError(null);
+
+      const response = await fetch(`/api/society/${selectedCommunityId}/chat/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          poll: {
+            question: trimmedQuestion,
+            options: trimmedOptions,
+          },
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to create poll");
+      }
+
+      setMessages((prev) => {
+        const message = normalizeMessage(data.message as ChatMessage);
+        if (prev.some((entry) => entry.id === message.id)) {
+          return prev;
+        }
+
+        return [...prev, message];
+      });
+
+      resetPollComposer();
+    } catch (createError) {
+      setError(createError instanceof Error ? createError.message : "Failed to create poll");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleVote = async (message: ChatMessage, optionIndex: number) => {
+    if (!selectedCommunityId) {
+      return;
+    }
+
+    try {
+      setVotingMessageId(message.id);
+      setError(null);
+
+      const response = await fetch(
+        `/api/society/${selectedCommunityId}/chat/messages/${message.id}/vote`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ optionIndex }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to submit vote");
+      }
+
+      setMessages((prev) =>
+        prev.map((entry) =>
+          entry.id === message.id
+            ? {
+                ...entry,
+                poll_vote_counts: data.summary.counts,
+                poll_user_vote_index: data.summary.myVoteIndex,
+              }
+            : entry
+        )
+      );
+    } catch (voteError) {
+      setError(voteError instanceof Error ? voteError.message : "Failed to submit vote");
+    } finally {
+      setVotingMessageId(null);
     }
   };
 
@@ -622,6 +807,7 @@ export default function SocietyChatPage() {
               const senderName =
                 message.user?.name || memberForMessage?.user?.name || message.user_id.slice(0, 8);
               const senderAvatarUrl = message.user?.avatar_url || memberForMessage?.user?.avatar_url || null;
+              const parsedPoll = parsePollFromContent(message.content);
 
               return (
                 <div key={message.id} className="flex max-w-[95%] items-start gap-2">
@@ -643,7 +829,51 @@ export default function SocietyChatPage() {
 
                   <div className="rounded-lg border bg-background px-3 py-2 text-sm">
                     <p className="mb-1 text-xs font-semibold text-muted-foreground">{senderName}</p>
-                    <p className="whitespace-pre-wrap break-words">{message.content}</p>
+                    {parsedPoll ? (
+                      <div className="space-y-2">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">Poll</p>
+                        <p className="font-medium">{parsedPoll.question}</p>
+                        <div className="space-y-1">
+                          {parsedPoll.options.map((option, index) => {
+                            const counts =
+                              Array.isArray(message.poll_vote_counts) &&
+                              message.poll_vote_counts.length === parsedPoll.options.length
+                                ? message.poll_vote_counts
+                                : Array.from({ length: parsedPoll.options.length }, () => 0);
+                            const totalVotes = counts.reduce((sum, value) => sum + value, 0);
+                            const optionVotes = counts[index] || 0;
+                            const percentage = totalVotes > 0 ? Math.round((optionVotes / totalVotes) * 100) : 0;
+                            const isSelected = message.poll_user_vote_index === index;
+
+                            return (
+                              <button
+                                key={`${message.id}-${index}`}
+                                type="button"
+                                onClick={() => handleVote(message, index)}
+                                disabled={votingMessageId === message.id}
+                                className={`w-full rounded border px-2 py-1 text-left text-xs ${
+                                  isSelected
+                                    ? "border-blue-500 bg-blue-50 text-blue-700"
+                                    : "bg-muted/20 hover:bg-muted/40"
+                                } disabled:cursor-not-allowed disabled:opacity-60`}
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <span>{option}</span>
+                                  <span className="text-[11px] text-muted-foreground">
+                                    {optionVotes} vote{optionVotes === 1 ? "" : "s"} ({percentage}%)
+                                  </span>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <p className="text-[11px] text-muted-foreground">
+                          Total votes: {(message.poll_vote_counts || []).reduce((sum, value) => sum + value, 0)}
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="whitespace-pre-wrap break-words">{message.content}</p>
+                    )}
                     {message.attachment_url && (
                       <div className="mt-2">
                         {isImageAttachment(message.attachment_mime_type) ? (
@@ -707,6 +937,71 @@ export default function SocietyChatPage() {
             </div>
           )}
 
+          {showPollComposer && (
+            <div className="mt-2 space-y-2 rounded-md border bg-muted/20 p-3">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold" htmlFor="poll-question">
+                  Poll question
+                </label>
+                <input
+                  id="poll-question"
+                  value={pollQuestion}
+                  onChange={(event) => setPollQuestion(event.target.value)}
+                  placeholder="Ask something to the group"
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-xs font-semibold">Options</p>
+                {pollOptions.map((option, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <input
+                      value={option}
+                      onChange={(event) => updatePollOption(index, event.target.value)}
+                      placeholder={`Option ${index + 1}`}
+                      className="flex-1 rounded-md border bg-background px-3 py-2 text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removePollOption(index)}
+                      disabled={pollOptions.length <= 2}
+                      className="rounded-md border px-2 py-2 text-xs disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={addPollOption}
+                  disabled={pollOptions.length >= 8}
+                  className="rounded-md border px-3 py-1.5 text-xs disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Add option
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCreatePoll}
+                  disabled={sending}
+                  className="rounded-md border bg-primary px-3 py-1.5 text-xs text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {sending ? "Creating..." : "Create poll"}
+                </button>
+                <button
+                  type="button"
+                  onClick={resetPollComposer}
+                  className="rounded-md border px-3 py-1.5 text-xs"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
           <form onSubmit={handleSendMessage} className="mt-3 flex gap-2">
             <input
               ref={attachmentInputRef}
@@ -723,6 +1018,14 @@ export default function SocietyChatPage() {
               aria-label="Attach file"
             >
               {uploadingAttachment ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowPollComposer((prev) => !prev)}
+              disabled={sending || uploadingAttachment}
+              className="inline-flex items-center rounded-md border px-3 py-2 text-sm hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Poll
             </button>
             <input
               value={messageInput}

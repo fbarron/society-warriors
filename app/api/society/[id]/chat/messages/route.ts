@@ -11,6 +11,42 @@ type ChatAttachment = {
   size_bytes: number;
 };
 
+const POLL_PREFIX = "[POLL]";
+
+type PollPayload = {
+  question: string;
+  options: string[];
+};
+
+function parsePollPayload(content: string): PollPayload | null {
+  if (!content.startsWith(POLL_PREFIX)) {
+    return null;
+  }
+
+  try {
+    const payload = JSON.parse(content.slice(POLL_PREFIX.length)) as {
+      question?: unknown;
+      options?: unknown;
+    };
+
+    const question = typeof payload.question === "string" ? payload.question.trim() : "";
+    const options = Array.isArray(payload.options)
+      ? payload.options
+          .filter((option): option is string => typeof option === "string")
+          .map((option) => option.trim())
+          .filter((option) => option.length > 0)
+      : [];
+
+    if (!question || options.length < 2) {
+      return null;
+    }
+
+    return { question, options };
+  } catch {
+    return null;
+  }
+}
+
 async function assertActiveMembership(
   supabase: Awaited<ReturnType<typeof createClient>>,
   userId: string,
@@ -81,7 +117,81 @@ export async function GET(
       throw error;
     }
 
-    return NextResponse.json({ success: true, messages: data ?? [] }, { status: 200 });
+    const messages = data ?? [];
+    const pollMessages = messages
+      .map((message) => {
+        const payload = parsePollPayload(message.content as string);
+        if (!payload) {
+          return null;
+        }
+
+        return {
+          id: Number(message.id),
+          optionsCount: payload.options.length,
+        };
+      })
+      .filter((entry): entry is { id: number; optionsCount: number } => Boolean(entry));
+
+    if (pollMessages.length === 0) {
+      return NextResponse.json({ success: true, messages }, { status: 200 });
+    }
+
+    const pollMessageIds = pollMessages.map((entry) => entry.id);
+    const optionCountByMessage = new Map<number, number>(
+      pollMessages.map((entry) => [entry.id, entry.optionsCount])
+    );
+
+    const { data: voteRows, error: voteError } = await supabase
+      .from("community_chat_poll_votes")
+      .select("message_id, option_index, user_id")
+      .in("message_id", pollMessageIds);
+
+    if (voteError && voteError.code !== "42P01") {
+      throw voteError;
+    }
+
+    const countsByMessage = new Map<number, number[]>();
+    const myVoteByMessage = new Map<number, number>();
+
+    (voteRows ?? []).forEach((vote) => {
+      const messageId = Number(vote.message_id);
+      const optionCount = optionCountByMessage.get(messageId);
+      if (!optionCount) {
+        return;
+      }
+
+      if (!countsByMessage.has(messageId)) {
+        countsByMessage.set(messageId, Array.from({ length: optionCount }, () => 0));
+      }
+
+      const counts = countsByMessage.get(messageId)!;
+      if (vote.option_index >= 0 && vote.option_index < counts.length) {
+        counts[vote.option_index] += 1;
+      }
+
+      if (vote.user_id === user.id) {
+        myVoteByMessage.set(messageId, vote.option_index);
+      }
+    });
+
+    const enrichedMessages = messages.map((message) => {
+      const messageId = Number(message.id);
+      const optionCount = optionCountByMessage.get(messageId);
+      if (!optionCount) {
+        return message;
+      }
+
+      const counts =
+        countsByMessage.get(messageId) ?? Array.from({ length: optionCount }, () => 0);
+
+      return {
+        ...message,
+        poll_vote_counts: counts,
+        poll_user_vote_index: myVoteByMessage.get(messageId) ?? null,
+      };
+    });
+
+    return NextResponse.json({ success: true, messages: enrichedMessages }, { status: 200 });
   } catch (error) {
     console.error("Error fetching chat messages:", error);
     return NextResponse.json(
@@ -118,6 +228,20 @@ export async function POST(
 
     const body = await request.json();
     const content = typeof body.content === "string" ? body.content.trim() : "";
+    const pollPayload =
+      body.poll && typeof body.poll === "object" ? (body.poll as Record<string, unknown>) : null;
+    const pollQuestion =
+      pollPayload && typeof pollPayload.question === "string"
+        ? pollPayload.question.trim()
+        : "";
+    const pollOptions =
+      pollPayload && Array.isArray(pollPayload.options)
+        ? pollPayload.options
+            .filter((option): option is string => typeof option === "string")
+            .map((option) => option.trim())
+            .filter((option) => option.length > 0)
+        : [];
+    const hasPoll = Boolean(pollQuestion && pollOptions.length >= 2);
     const attachment = body.attachment as ChatAttachment | undefined;
     const normalizedAttachment =
       attachment &&
@@ -129,7 +253,7 @@ export async function POST(
         ? attachment
         : null;
 
-    if (!content && !normalizedAttachment) {
+    if (!content && !normalizedAttachment && !hasPoll) {
       return NextResponse.json(
         { error: "Message content or attachment is required" },
         { status: 400 }
@@ -143,13 +267,32 @@ export async function POST(
       );
     }
 
+    if (hasPoll && pollOptions.length > 8) {
+      return NextResponse.json(
+        { error: "A poll can have at most 8 options" },
+        { status: 400 }
+      );
+    }
+
+    const encodedPollContent = hasPoll
+      ? `${POLL_PREFIX}${JSON.stringify({ question: pollQuestion, options: pollOptions })}`
+      : "";
+    const messageContent = hasPoll ? encodedPollContent : content || "[Attachment]";
+
+    if (messageContent.length > 2000) {
+      return NextResponse.json(
+        { error: "Poll content is too long" },
+        { status: 400 }
+      );
+    }
+
     const { data, error } = await supabase
       .from("community_chat_messages")
       .insert([
         {
           community_id: communityId,
           user_id: user.id,
-          content: content || "[Attachment]",
+          content: messageContent,
           attachment_url: normalizedAttachment?.url ?? null,
           attachment_path: normalizedAttachment?.path ?? null,
           attachment_file_name: normalizedAttachment?.file_name ?? null,
@@ -177,7 +320,16 @@ export async function POST(
       throw error;
     }
 
-    return NextResponse.json({ success: true, message: data }, { status: 201 });
+    const pollPayloadFromMessage = parsePollPayload(data.content as string);
+    const message = pollPayloadFromMessage
+      ? {
+          ...data,
+          poll_vote_counts: Array.from({ length: pollPayloadFromMessage.options.length }, () => 0),
+          poll_user_vote_index: null,
+        }
+      : data;
+
+    return NextResponse.json({ success: true, message }, { status: 201 });
   } catch (error) {
     console.error("Error sending chat message:", error);
     return NextResponse.json(
