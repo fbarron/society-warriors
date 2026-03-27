@@ -235,7 +235,7 @@ async function translateWithDeepL(texts: string[]) {
   const apiKey = process.env.DEEPL_API_KEY;
 
   if (!apiKey) {
-    throw new Error("Missing DEEPL_API_KEY");
+    throw new Error("Translation API key not found");
   }
 
   const body = new URLSearchParams();
@@ -331,7 +331,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ results: [...skippedMessages, ...results] });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Translation service unavailable";
-      const status = message === "Missing DEEPL_API_KEY" ? 500 : 502;
+      const status = message === "Translation API key not found" ? 500 : 502;
       return NextResponse.json({ error: message }, { status });
     }
   }
@@ -359,7 +359,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Translation service unavailable";
-    const status = message === "Missing DEEPL_API_KEY" ? 500 : 502;
+    const status = message === "Translation API key not found" ? 500 : 502;
     return NextResponse.json({ error: message }, { status });
   }
 }

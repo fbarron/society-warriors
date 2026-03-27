@@ -821,10 +821,10 @@ export default function SocietyChatPage() {
       });
       const data = await response.json();
       if (!response.ok) {
-        if (data.error === "Missing DEEPL_API_KEY") {
+        if (data.error === "Translation API key not found") {
           setTranslatedMessages((prev) => ({
             ...prev,
-            [messageId]: "Translation unavailable — no API key configured",
+            [messageId]: "Translation API key not found",
           }));
           return;
         }
