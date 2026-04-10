@@ -11,8 +11,6 @@ interface UserProfile {
   bio?: string;
 }
 
-const supabase = createClient();
-
 type Post = {
   id: number;
   content: string;
@@ -45,6 +43,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     const fetchProfileAndPosts = async () => {
+      const supabase = createClient();
       setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -101,6 +100,7 @@ export default function ProfilePage() {
 
   const handleAvatarUpload = async () => {
     if (!avatarFile) return null;
+    const supabase = createClient();
     setAvatarUploading(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
@@ -122,6 +122,7 @@ export default function ProfilePage() {
   };
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    const supabase = createClient();
     setSaving(true);
     let avatarUrl = form.avatar_url;
     if (avatarFile) {

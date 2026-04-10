@@ -125,19 +125,25 @@ async function updateMemberRole(formData: FormData) {
 
   const communityId = String(formData.get("communityId") ?? "").trim();
   const memberUserId = String(formData.get("memberUserId") ?? "").trim();
-                    const authorAvatarUrl = post.user?.avatar_url || DEFAULT_AVATAR_URL;
+  const nextRoleRaw = String(formData.get("role") ?? "member").trim().toLowerCase();
   const nextRole =
     nextRoleRaw === "admin" || nextRoleRaw === "moderator" ? nextRoleRaw : "member";
 
   if (!communityId || !memberUserId) {
     return;
-                            <Image
-                              src={authorAvatarUrl}
-                              alt={authorName}
-                              width={36}
-                              height={36}
-                              className="h-full w-full object-cover"
-                            />
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user || user.id === memberUserId) {
+    return;
+  }
+
+  const { isCreator, myRole } = await getActorPermissions(communityId, user.id);
+  if (!isCreator && myRole !== "owner" && myRole !== "admin") {
     return;
   }
 

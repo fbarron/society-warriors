@@ -1,3 +1,5 @@
+"use client";
+
 import { useState } from "react";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
@@ -9,7 +11,6 @@ import {
 } from "./ui/dropdown-menu";
 import { MoreVertical, Trash2, Shield } from "lucide-react";
 import Image from "next/image";
-
 
 const DEFAULT_AVATAR_URL = "/default-avatar.svg";
 
@@ -34,21 +35,22 @@ interface SocietyMemberListProps {
 
 export function SocietyMemberList({
   members,
-              <Image
-                src={member.user.avatar_url || DEFAULT_AVATAR_URL}
-                alt={member.user.name}
-                width={40}
-                height={40}
-                className="rounded-full"
-              />
+  currentUserRole,
+  communityId,
+  onMemberRemoved,
+  onRoleChanged,
+}: SocietyMemberListProps) {
+  const [loading, setLoading] = useState<string | null>(null);
+  const canManageMembers = currentUserRole === "owner" || currentUserRole === "admin";
+
+  const handleRemoveMember = async (memberId: string) => {
+    if (!canManageMembers) return;
     if (!confirm("Are you sure you want to remove this member?")) return;
 
     setLoading(memberId);
     try {
-      // TODO: Implement remove member API
-      // const response = await fetch(`/api/society/${communityId}/members/${memberId}`, {
-      //   method: "DELETE",
-      // });
+      // TODO: Wire this to the remove-member API route when available.
+      console.debug("Remove member", { communityId, memberId });
       if (onMemberRemoved) {
         onMemberRemoved(memberId);
       }
@@ -62,11 +64,8 @@ export function SocietyMemberList({
 
     setLoading(memberId);
     try {
-      // TODO: Implement role change API
-      // const response = await fetch(`/api/society/${communityId}/members/${memberId}/role`, {
-      //   method: "PATCH",
-      //   body: JSON.stringify({ role: newRole }),
-      // });
+      // TODO: Wire this to the role-change API route when available.
+      console.debug("Change role", { communityId, memberId, newRole });
       if (onRoleChanged) {
         onRoleChanged(memberId, newRole);
       }
@@ -90,33 +89,29 @@ export function SocietyMemberList({
 
   return (
     <Card className="p-6">
-      <h3 className="text-lg font-semibold mb-4">Members ({members.length})</h3>
+      <h3 className="mb-4 text-lg font-semibold">Members ({members.length})</h3>
       <div className="space-y-3">
         {members.map((member) => (
           <div
             key={member.id}
-            className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50"
+            className="flex items-center justify-between rounded-lg border p-3 hover:bg-gray-50"
           >
-            <div className="flex items-center gap-3 flex-1">
-              {member.user.avatar_url ? (
-                <Image
-                  src={member.user.avatar_url}
-                  alt={member.user.name}
-                  width={40}
-                  height={40}
-                  className="rounded-full"
-                />
-              ) : (
-                <div className="w-10 h-10 rounded-full bg-gray-200" />
-              )}
+            <div className="flex flex-1 items-center gap-3">
+              <Image
+                src={member.user.avatar_url || DEFAULT_AVATAR_URL}
+                alt={member.user.name}
+                width={40}
+                height={40}
+                className="rounded-full"
+              />
               <div className="flex-1">
                 <p className="font-medium">{member.user.name}</p>
-                <div className="flex gap-2 mt-1">
-                  <span className={`text-xs px-2 py-1 rounded ${getRoleColor(member.role)}`}>
+                <div className="mt-1 flex gap-2">
+                  <span className={`rounded px-2 py-1 text-xs ${getRoleColor(member.role)}`}>
                     {member.role.charAt(0).toUpperCase() + member.role.slice(1)}
                   </span>
                   {member.status === "pending" && (
-                    <span className="text-xs px-2 py-1 rounded bg-yellow-100 text-yellow-800">
+                    <span className="rounded bg-yellow-100 px-2 py-1 text-xs text-yellow-800">
                       Pending
                     </span>
                   )}
@@ -128,7 +123,7 @@ export function SocietyMemberList({
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" disabled={loading === member.id}>
-                    <MoreVertical className="w-4 h-4" />
+                    <MoreVertical className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
@@ -136,7 +131,7 @@ export function SocietyMemberList({
                     onClick={() => handleRoleChange(member.id, "admin")}
                     disabled={loading === member.id || member.role === "admin"}
                   >
-                    <Shield className="w-4 h-4 mr-2" />
+                    <Shield className="mr-2 h-4 w-4" />
                     Make Admin
                   </DropdownMenuItem>
                   <DropdownMenuItem
@@ -150,7 +145,7 @@ export function SocietyMemberList({
                     disabled={loading === member.id}
                     className="text-red-600"
                   >
-                    <Trash2 className="w-4 h-4 mr-2" />
+                    <Trash2 className="mr-2 h-4 w-4" />
                     Remove
                   </DropdownMenuItem>
                 </DropdownMenuContent>
