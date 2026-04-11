@@ -3,10 +3,12 @@ import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { Bell, BellOff } from "lucide-react";
+import { Bell, BellOff, Trash2 } from "lucide-react";
+import { SocietyMemberList, type SocietyMember } from "@/components/society-member-list";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { deletePost as deletePostRecord } from "@/lib/supabase/queries";
 import { createClient } from "@/lib/supabase/server";
 
 type CommunityDetail = {
@@ -27,6 +29,7 @@ type MembershipRow = {
 type UserRow = {
   id: string;
   name: string | null;
+  avatar_url: string | null;
 };
 
 type CommunityPost = {
@@ -347,6 +350,55 @@ async function updatePostNotifications(formData: FormData) {
   revalidatePath(`/communities/${communityId}`);
 }
 
+async function deleteCommunityPost(formData: FormData) {
+  "use server";
+
+  const communityId = String(formData.get("communityId") ?? "").trim();
+  const postId = String(formData.get("postId") ?? "").trim();
+
+  if (!communityId || !postId) {
+    return;
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return;
+  }
+
+  const { data: post } = await supabase
+    .from("posts")
+    .select("id, user_id, community_id")
+    .eq("id", postId)
+    .single();
+
+  if (!post || post.community_id !== communityId) {
+    return;
+  }
+
+  const { isCreator, myRole } = await getActorPermissions(communityId, user.id);
+  const canDeletePost =
+    post.user_id === user.id ||
+    isCreator ||
+    myRole === "owner" ||
+    myRole === "admin" ||
+    myRole === "moderator";
+
+  if (!canDeletePost) {
+    return;
+  }
+
+  await deletePostRecord(postId);
+
+  revalidatePath("/communities");
+  revalidatePath(`/communities/${communityId}`);
+  revalidatePath("/protected");
+  revalidatePath("/profile");
+}
+
 function toCommunityDetail(raw: Record<string, unknown>): CommunityDetail {
   return {
     id: String(raw.id ?? ""),
@@ -392,10 +444,28 @@ async function CommunityDetailContent({ communityId }: { communityId: string }) 
   const activeMemberIds = activeMemberships.map((row) => row.user_id);
   const { data: usersData } =
     activeMemberIds.length > 0
-      ? await supabase.from("users").select("id, name").in("id", activeMemberIds)
+      ? await supabase.from("users").select("id, name, avatar_url").in("id", activeMemberIds)
       : { data: [] as UserRow[] };
 
-  const usersById = new Map((usersData ?? []).map((profile) => [profile.id, profile.name]));
+  const usersById = new Map((usersData ?? []).map((profile) => [profile.id, profile]));
+  const managedMembers: SocietyMember[] = activeMemberships.map((member) => {
+    const profile = usersById.get(member.user_id);
+    const role: SocietyMember["role"] =
+      member.role === "owner" || member.role === "admin" || member.role === "moderator"
+        ? member.role
+        : "member";
+
+    return {
+      id: member.user_id,
+      user: {
+        id: member.user_id,
+        name: profile?.name ?? null,
+        avatar_url: profile?.avatar_url ?? null,
+      },
+      role,
+      status: member.status === "pending" ? "pending" : "active",
+    };
+  });
 
   const memberCount = activeMemberships.length;
   const myMembership = user ? activeMemberships.find((row) => row.user_id === user.id) : null;
@@ -472,31 +542,53 @@ async function CommunityDetailContent({ communityId }: { communityId: string }) 
                   {communityPosts.map((post) => {
                     const authorName = post.user?.name || `User ${post.user?.id?.slice(0, 8) || "unknown"}`;
                     const authorAvatarUrl = post.user?.avatar_url || null;
+                    const canDeletePost = Boolean(
+                      user && (post.user?.id === user.id || canEditCommunity),
+                    );
 
                     return (
                       <article key={post.id} className="rounded-md border bg-background p-4">
-                        <div className="mb-3 flex items-center gap-3">
-                          <div className="h-9 w-9 overflow-hidden rounded-full bg-muted">
-                            {authorAvatarUrl ? (
-                              <Image
-                                src={authorAvatarUrl}
-                                alt={authorName}
-                                width={36}
-                                height={36}
-                                className="h-full w-full object-cover"
-                              />
-                            ) : (
-                              <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-muted-foreground">
-                                {authorName.charAt(0).toUpperCase()}
-                              </div>
-                            )}
+                        <div className="mb-3 flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="h-9 w-9 overflow-hidden rounded-full bg-muted">
+                              {authorAvatarUrl ? (
+                                <Image
+                                  src={authorAvatarUrl}
+                                  alt={authorName}
+                                  width={36}
+                                  height={36}
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-muted-foreground">
+                                  {authorName.charAt(0).toUpperCase()}
+                                </div>
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-semibold">{authorName}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {new Date(post.created_at).toLocaleString()}
+                              </p>
+                            </div>
                           </div>
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold">{authorName}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {new Date(post.created_at).toLocaleString()}
-                            </p>
-                          </div>
+
+                          {canDeletePost && (
+                            <form action={deleteCommunityPost}>
+                              <input type="hidden" name="communityId" value={community.id} />
+                              <input type="hidden" name="postId" value={post.id} />
+                              <Button
+                                type="submit"
+                                size="icon"
+                                variant="outline"
+                                className="text-red-600"
+                                aria-label="Delete post"
+                                title="Delete post"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </form>
+                          )}
                         </div>
 
                         <p className="whitespace-pre-wrap text-sm">{post.content}</p>
@@ -630,71 +722,19 @@ async function CommunityDetailContent({ communityId }: { communityId: string }) 
                 )}
 
                 {canManageMembers && (
-                  <Card className="border-dashed">
-                    <CardHeader>
-                      <CardTitle className="text-base">Manage members</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                        {activeMemberships.map((member) => {
-                          const isMe = user?.id === member.user_id;
-                          const displayName =
-                            usersById.get(member.user_id) ||
-                            (isMe ? "You" : `User ${member.user_id.slice(0, 8)}`);
-                          const targetRole = member.role || "member";
-                          const canModifyRole =
-                            !isMe &&
-                            (((isCreator || myRole === "owner") && targetRole !== "owner") ||
-                              (myRole === "admin" && targetRole !== "owner" && targetRole !== "admin"));
-
-                          return (
-                            <div
-                              key={member.user_id}
-                              className="flex flex-col gap-2 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between"
-                            >
-                              <div>
-                                <p className="text-sm font-medium">{displayName}</p>
-                                <p className="text-xs text-muted-foreground">{member.user_id}</p>
-                              </div>
-
-                              {isMe ? (
-                                <Badge variant="outline">{targetRole}</Badge>
-                              ) : canModifyRole ? (
-                                <div className="flex items-center gap-2">
-                                  <form action={updateMemberRole} className="flex items-center gap-2">
-                                    <input type="hidden" name="communityId" value={community.id} />
-                                    <input type="hidden" name="memberUserId" value={member.user_id} />
-                                    <select
-                                      name="role"
-                                      defaultValue={targetRole}
-                                      className="rounded-md border bg-background px-2 py-1 text-sm"
-                                    >
-                                      <option value="member">member</option>
-                                      <option value="moderator">moderator</option>
-                                      {(isCreator || myRole === "owner") && <option value="admin">admin</option>}
-                                    </select>
-                                    <Button size="sm" type="submit" variant="secondary">
-                                      Update role
-                                    </Button>
-                                  </form>
-
-                                  <form action={removeMember}>
-                                    <input type="hidden" name="communityId" value={community.id} />
-                                    <input type="hidden" name="memberUserId" value={member.user_id} />
-                                    <Button size="sm" type="submit" variant="outline">
-                                      Remove
-                                    </Button>
-                                  </form>
-                                </div>
-                              ) : (
-                                <Badge variant="outline">{targetRole}</Badge>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <SocietyMemberList
+                    members={managedMembers}
+                    currentUserId={user?.id}
+                    currentUserRole={
+                      myRole === "owner" ||
+                      myRole === "admin" ||
+                      myRole === "moderator" ||
+                      myRole === "member"
+                        ? myRole
+                        : undefined
+                    }
+                    communityId={community.id}
+                  />
                 )}
               </div>
             </details>

@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { SocietyPostForm } from "@/components/society-post-form";
 import { PostApprovalBadge } from "@/components/post-approval-badge";
 import { Card } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import { Loader2, Trash2 } from "lucide-react";
 import Image from "next/image";
 
 // Types
@@ -78,6 +78,7 @@ export default function SocialFeedPage() {
   const [joinedCommunities, setJoinedCommunities] = useState<Community[]>([]);
   const [selectedCommunityId, setSelectedCommunityId] = useState<string | null>(null);
   const [composeCommunityId, setComposeCommunityId] = useState<string>("");
+  const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
   const loader = useRef<HTMLDivElement | null>(null);
   const postsScrollRef = useRef<HTMLDivElement | null>(null);
   const PAGE_SIZE = 10;
@@ -242,6 +243,44 @@ export default function SocialFeedPage() {
     }
   };
 
+  const canDeletePost = (post: Post) => {
+    const communityRole = joinedCommunities.find(
+      (community) => community.id === post.community.id,
+    )?.role;
+
+    return (
+      currentUser?.id === post.user?.id ||
+      communityRole === "owner" ||
+      communityRole === "admin" ||
+      communityRole === "moderator"
+    );
+  };
+
+  const handleDeletePost = async (postId: string) => {
+    if (!confirm("Are you sure you want to delete this post?")) {
+      return;
+    }
+
+    setDeletingPostId(postId);
+    try {
+      const response = await fetch(`/api/society/posts/${postId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const result = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(result?.error || "Failed to delete post.");
+      }
+
+      setPosts((prev) => prev.filter((post) => post.id !== postId));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to delete post.";
+      alert(message);
+    } finally {
+      setDeletingPostId(null);
+    }
+  };
+
   if (loading && posts.length === 0) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -370,7 +409,7 @@ export default function SocialFeedPage() {
             .map((post) => (
               <Card key={post.id} className="p-6">
               <div className="mb-4">
-                <div className="flex items-start justify-between mb-3">
+                <div className="flex items-start justify-between mb-3 gap-3">
                   <Link
                     href={`/profile/${post.user?.id}`}
                     className="inline-flex items-center gap-3 rounded-md hover:bg-gray-100 px-2 py-1"
@@ -393,7 +432,21 @@ export default function SocialFeedPage() {
                       </div>
                     </div>
                   </Link>
-                  <PostApprovalBadge status={post.status} showLabel={false} />
+                  <div className="flex items-center gap-2">
+                    <PostApprovalBadge status={post.status} showLabel={false} />
+                    {canDeletePost(post) && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeletePost(post.id)}
+                        disabled={deletingPostId === post.id}
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-red-200 text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                        aria-label={deletingPostId === post.id ? "Deleting post" : "Delete post"}
+                        title={deletingPostId === post.id ? "Deleting..." : "Delete post"}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <Link
                   href={`/communities/${post.community.id}`}

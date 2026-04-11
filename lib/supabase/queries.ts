@@ -123,6 +123,47 @@ export async function rejectPost(postId: string) {
   return { data, error };
 }
 
+export async function deletePost(postId: string) {
+  const client = await createClient();
+  const { data: post, error: postLookupError } = await client
+    .from("posts")
+    .select("id, image_metadata")
+    .eq("id", postId)
+    .single();
+
+  if (postLookupError || !post) {
+    return { data: null, error: postLookupError ?? new Error("Post not found") };
+  }
+
+  const { error: commentsError } = await client.from("comments").delete().eq("post_id", postId);
+  if (commentsError) {
+    return { data: null, error: commentsError };
+  }
+
+  const { error: notificationsError } = await client
+    .from("notifications")
+    .delete()
+    .eq("target_id", postId)
+    .eq("target_type", "post");
+  if (notificationsError) {
+    return { data: null, error: notificationsError };
+  }
+
+  const imagePaths = Array.isArray(post.image_metadata)
+    ? post.image_metadata
+        .map((image: Partial<PostImageMetadata> | null | undefined) => image?.path)
+        .filter((path): path is string => typeof path === "string" && path.length > 0)
+    : [];
+
+  if (imagePaths.length > 0) {
+    await client.storage.from("post-images").remove(imagePaths);
+  }
+
+  const { data, error } = await client.from("posts").delete().eq("id", postId).select("id").maybeSingle();
+
+  return { data, error };
+}
+
 export async function getApprovedPostsForCommunities(
   communityIds: string[],
   limit = 20,

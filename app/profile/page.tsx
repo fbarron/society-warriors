@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import { Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 // Types
@@ -35,6 +36,7 @@ export default function ProfilePage() {
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [posts, setPosts] = useState<Post[]>([]);
+  const [deletingPostId, setDeletingPostId] = useState<number | null>(null);
   const [showComments, setShowComments] = useState<Record<number, boolean>>({});
     const toggleComments = (postId: number) => {
       setShowComments((prev) => ({ ...prev, [postId]: !prev[postId] }));
@@ -147,6 +149,31 @@ export default function ProfilePage() {
     setSaving(false);
   };
 
+  const handleDeletePost = async (postId: number) => {
+    if (!confirm("Are you sure you want to delete this post?")) {
+      return;
+    }
+
+    setDeletingPostId(postId);
+    try {
+      const response = await fetch(`/api/society/posts/${postId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const result = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(result?.error || "Failed to delete post.");
+      }
+
+      setPosts((prev) => prev.filter((post) => post.id !== postId));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to delete post.";
+      alert(message);
+    } finally {
+      setDeletingPostId(null);
+    }
+  };
+
   return (
     <div className="max-w-2xl mx-auto py-10 px-4">
       <div className="flex flex-col items-center bg-white rounded-xl shadow p-8 mb-8">
@@ -217,7 +244,19 @@ export default function ProfilePage() {
             <ul className="flex flex-col gap-4">
               {posts.map((post) => (
                 <li key={post.id} className="border-b pb-3">
-                  <div className="font-semibold text-lg mb-1">{post.content}</div>
+                  <div className="mb-2 flex items-start justify-between gap-3">
+                    <div className="font-semibold text-lg">{post.content}</div>
+                    <button
+                      type="button"
+                      onClick={() => handleDeletePost(post.id)}
+                      disabled={deletingPostId === post.id}
+                      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-red-200 text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                      aria-label={deletingPostId === post.id ? "Deleting post" : "Delete post"}
+                      title={deletingPostId === post.id ? "Deleting..." : "Delete post"}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                   {post.image_metadata && post.image_metadata.length > 0 && (
                     <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
                       {post.image_metadata.map((image) => (
