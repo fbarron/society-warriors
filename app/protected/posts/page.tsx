@@ -888,7 +888,7 @@ export default function SocietyChatPage() {
         <Card className="mb-4 border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</Card>
       )}
 
-      <div className="mb-4 flex items-center justify-between rounded-md border bg-muted/20 px-3 py-2 text-xs">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-md border bg-muted/20 px-3 py-2 text-xs">
         <span>
           Connection: {connectionStatus === "connected" ? "Live" : connectionStatus === "reconnecting" ? "Reconnecting" : connectionStatus}
         </span>
@@ -1094,7 +1094,7 @@ export default function SocietyChatPage() {
           </div>
 
           {pendingAttachment && (
-            <div className="mt-2 flex items-center justify-between rounded-md border bg-muted/20 px-3 py-2 text-xs">
+            <div className="mt-2 flex flex-col items-start justify-between gap-2 rounded-md border bg-muted/20 px-3 py-2 text-xs sm:flex-row sm:items-center">
               <div className="flex items-center gap-2">
                 {isImageAttachment(pendingAttachment.mime_type) && (
                   <Image
@@ -1105,7 +1105,7 @@ export default function SocietyChatPage() {
                     className="h-10 w-10 rounded border object-cover"
                   />
                 )}
-                <span>
+                <span className="break-words">
                   Pending attachment: {pendingAttachment.file_name} ({Math.ceil(pendingAttachment.size_bytes / 1024)} KB)
                 </span>
               </div>
@@ -1185,7 +1185,7 @@ export default function SocietyChatPage() {
             </div>
           )}
 
-          <form onSubmit={handleSendMessage} className="mt-3 flex gap-2">
+          <form onSubmit={handleSendMessage} className="mt-3 flex flex-wrap gap-2 sm:flex-nowrap">
             <input
               ref={attachmentInputRef}
               type="file"
@@ -1215,7 +1215,7 @@ export default function SocietyChatPage() {
               onChange={(event) => handleTypingChange(event.target.value)}
               maxLength={2000}
               placeholder="Write a message or attach a file"
-              className="flex-1 rounded-md border bg-background px-3 py-2 text-sm"
+              className="w-full flex-1 rounded-md border bg-background px-3 py-2 text-sm sm:w-auto"
             />
             <Button type="submit" disabled={sending || uploadingAttachment || (!messageInput.trim() && !pendingAttachment)}>
               {sending ? "Sending..." : "Send"}

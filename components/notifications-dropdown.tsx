@@ -131,7 +131,12 @@ export function NotificationsDropdown() {
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="relative"
+          aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
+        >
           <Bell className="w-5 h-5" />
           {unreadCount > 0 && (
             <span className="absolute top-1 right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
@@ -140,7 +145,11 @@ export function NotificationsDropdown() {
           )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80 max-h-96 overflow-y-auto">
+      <DropdownMenuContent
+        align="end"
+        collisionPadding={8}
+        className="w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] max-h-[70vh] overflow-y-auto sm:w-80 sm:max-w-80 sm:max-h-96"
+      >
         <div className="px-4 py-2">
           <h3 className="font-semibold text-sm">Notifications</h3>
         </div>

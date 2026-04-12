@@ -6,9 +6,9 @@ export default function Footer() {
   const year = useMemo(() => new Date().getFullYear(), []);
   return (
     <footer className="w-full py-4 border-t bg-primary text-primary-foreground text-sm mt-auto px-4">
-      <div className="grid grid-cols-3 items-center w-full">
-        <div />
-        <nav className="flex items-center justify-center gap-8">
+      <div className="grid w-full grid-cols-1 items-center gap-3 md:grid-cols-3 md:gap-0">
+        <div className="hidden md:block" />
+        <nav className="flex flex-wrap items-center justify-center gap-x-8 gap-y-2">
         <a href="/privacy" className="hover:underline">
           Privacy
         </a>
@@ -19,7 +19,7 @@ export default function Footer() {
           Contact
         </a>
         </nav>
-        <p className="text-right justify-self-end">© {year} Society Warriors. All rights reserved.</p>
+        <p className="text-center md:justify-self-end md:text-right">© {year} Society Warriors. All rights reserved.</p>
       </div>
     </footer>
   );

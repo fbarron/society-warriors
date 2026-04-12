@@ -307,9 +307,9 @@ export default function SocialFeedPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto py-10 px-2">
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-4xl font-extrabold tracking-tight">
+    <div className="max-w-3xl mx-auto py-10 px-2 sm:px-4">
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
           Your Feed
         </h1>
         <div className="flex gap-2">
@@ -398,7 +398,7 @@ export default function SocialFeedPage() {
       )}
 
       {/* Posts */}
-      <div ref={postsScrollRef} className="max-h-[42rem] overflow-y-auto pr-4">
+      <div ref={postsScrollRef} className="max-h-[42rem] overflow-y-auto pr-1 sm:pr-4">
         <div className="flex flex-col gap-8">
           {posts
             .filter(
@@ -407,12 +407,12 @@ export default function SocialFeedPage() {
                 post.community.id === selectedCommunityId
             )
             .map((post) => (
-              <Card key={post.id} className="p-6">
+              <Card key={post.id} className="p-4 sm:p-6">
               <div className="mb-4">
                 <div className="flex items-start justify-between mb-3 gap-3">
                   <Link
                     href={`/profile/${post.user?.id}`}
-                    className="inline-flex items-center gap-3 rounded-md hover:bg-gray-100 px-2 py-1"
+                    className="inline-flex min-w-0 items-center gap-3 rounded-md px-2 py-1 hover:bg-gray-100"
                   >
                     <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200">
                       <Image
@@ -423,11 +423,11 @@ export default function SocialFeedPage() {
                         className="object-cover w-full h-full"
                       />
                     </div>
-                    <div>
-                      <div className="font-semibold text-base">
+                    <div className="min-w-0">
+                      <div className="truncate font-semibold text-base">
                         {post.user?.name || "Unknown User"}
                       </div>
-                      <div className="text-xs text-gray-500">
+                      <div className="truncate text-xs text-gray-500">
                         {new Date(post.created_at).toLocaleString()}
                       </div>
                     </div>

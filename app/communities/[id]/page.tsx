@@ -754,7 +754,7 @@ async function CommunityDetailContent({ communityId }: { communityId: string }) 
                   As an admin, post notifications are always enabled for this society.
                 </p>
               ) : (
-                <form action={updatePostNotifications} className="flex items-center justify-between gap-4">
+                <form action={updatePostNotifications} className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center sm:gap-4">
                   <input type="hidden" name="communityId" value={community.id} />
                   <input
                     type="hidden"
@@ -800,7 +800,7 @@ async function CommunityDetailContent({ communityId }: { communityId: string }) 
           )}
 
           {user && (
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {isMember ? (
                 <form action={leaveCommunity}>
                   <input type="hidden" name="communityId" value={community.id} />
