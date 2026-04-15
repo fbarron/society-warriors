@@ -2,6 +2,8 @@
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { Trash2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { createClient } from "@/lib/supabase/client";
 
 // Types
@@ -186,11 +188,11 @@ export default function ProfilePage() {
         </div>
         {editMode ? (
           <form onSubmit={handleSave} className="w-full max-w-xs flex flex-col gap-3 items-center">
-            <input
+            <Input
               name="name"
               value={form.name}
               onChange={handleChange}
-              className="border rounded px-3 py-2 w-full"
+              className="w-full bg-white text-foreground placeholder:text-muted-foreground"
               placeholder="Name"
               required
             />
@@ -206,11 +208,11 @@ export default function ProfilePage() {
               {avatarUploading && <div className="text-xs text-blue-600">Uploading...</div>}
               {avatarFile && <div className="text-xs text-gray-600">Selected: {avatarFile.name}</div>}
             </div>
-            <textarea
+            <Textarea
               name="bio"
               value={form.bio}
               onChange={handleChange}
-              className="border rounded px-3 py-2 w-full"
+              className="w-full bg-white text-foreground placeholder:text-muted-foreground"
               placeholder="Bio"
               rows={3}
             />
