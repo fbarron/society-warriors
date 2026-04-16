@@ -7,10 +7,10 @@ import { revalidatePath } from "next/cache";
 import Link from "next/link";
 
 const recentActivity = [
-  "Ava posted in Society Warriors Fitness • 10m ago",
-  "Noah invited you to Creator Circle • 1h ago",
-  "Mia started a poll in Study Crew • 3h ago",
-  "Ethan commented in Gaming Arena • 5h ago",
+  "Ava posted in Debate Society • 10m ago",
+  "Noah invited you to Film Society • 1h ago",
+  "Mia started a poll in Music Society • 3h ago",
+  "Ethan commented in Art Society • 5h ago",
 ];
 
 type CommunityRecord = {
@@ -28,10 +28,16 @@ type MembershipRow = {
   status: string | null;
 };
 
-function toCommunityRecord(raw: Record<string, unknown>, members: number): CommunityRecord {
+function toCommunityRecord(
+  raw: Record<string, unknown>,
+  members: number,
+): CommunityRecord {
   return {
     id: String(raw.id ?? ""),
-    name: typeof raw.name === "string" && raw.name.trim() ? raw.name : "Unnamed society",
+    name:
+      typeof raw.name === "string" && raw.name.trim()
+        ? raw.name
+        : "Unnamed society",
     privacy:
       typeof raw.privacy === "string" && raw.privacy.toLowerCase() === "private"
         ? "private"
@@ -40,7 +46,10 @@ function toCommunityRecord(raw: Record<string, unknown>, members: number): Commu
       typeof raw.description === "string" && raw.description.trim()
         ? raw.description
         : "No description yet.",
-    category: typeof raw.category === "string" && raw.category.trim() ? raw.category : "General",
+    category:
+      typeof raw.category === "string" && raw.category.trim()
+        ? raw.category
+        : "General",
     members,
   };
 }
@@ -95,11 +104,11 @@ async function createCommunity(formData: FormData) {
   const { data: createdCommunity } = await supabase
     .from("communities")
     .insert({
-    name,
-    privacy: "public",
-    description: "",
-    category: "General",
-    created_by: user.id,
+      name,
+      privacy: "public",
+      description: "",
+      category: "General",
+      created_by: user.id,
     })
     .select("id")
     .single();
@@ -153,7 +162,9 @@ export default async function CommunitiesPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data: rawCommunities } = await supabase.from("communities").select("*");
+  const { data: rawCommunities } = await supabase
+    .from("communities")
+    .select("*");
   const communityRows = (rawCommunities ?? []) as Record<string, unknown>[];
   const communityIds = communityRows
     .map((community) => String(community.id ?? ""))
@@ -170,10 +181,13 @@ export default async function CommunitiesPage() {
     membershipRows = (memberships ?? []) as MembershipRow[];
   }
 
-  const memberCountByCommunity = membershipRows.reduce<Record<string, number>>((counts, row) => {
-    counts[row.community_id] = (counts[row.community_id] ?? 0) + 1;
-    return counts;
-  }, {});
+  const memberCountByCommunity = membershipRows.reduce<Record<string, number>>(
+    (counts, row) => {
+      counts[row.community_id] = (counts[row.community_id] ?? 0) + 1;
+      return counts;
+    },
+    {},
+  );
 
   const joinedCommunityIds = new Set(
     user
@@ -184,18 +198,27 @@ export default async function CommunitiesPage() {
   );
 
   const allCommunities = communityRows.map((community) =>
-    toCommunityRecord(community, memberCountByCommunity[String(community.id ?? "")] ?? 0),
+    toCommunityRecord(
+      community,
+      memberCountByCommunity[String(community.id ?? "")] ?? 0,
+    ),
   );
 
-  const yourCommunities = allCommunities.filter((community) => joinedCommunityIds.has(community.id));
-  const discoverCommunities = allCommunities.filter((community) => !joinedCommunityIds.has(community.id));
+  const yourCommunities = allCommunities.filter((community) =>
+    joinedCommunityIds.has(community.id),
+  );
+  const discoverCommunities = allCommunities.filter(
+    (community) => !joinedCommunityIds.has(community.id),
+  );
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-8 md:px-6 md:py-10">
       <section className="mb-6 flex flex-col gap-4 rounded-xl border bg-card p-6 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Societies</h1>
-          <p className="text-muted-foreground">Find, join, and manage your groups in one place.</p>
+          <p className="text-muted-foreground">
+            Find, join, and manage your groups in one place.
+          </p>
         </div>
         <form action={createCommunity} className="flex w-full max-w-md gap-2">
           <Input name="name" placeholder="Society name" required />
@@ -211,22 +234,32 @@ export default async function CommunitiesPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {yourCommunities.length === 0 && (
-                <p className="text-sm text-muted-foreground">You haven&apos;t joined any societies yet.</p>
+                <p className="text-sm text-muted-foreground">
+                  You haven&apos;t joined any societies yet.
+                </p>
               )}
               {yourCommunities.map((community) => (
                 <div key={community.id} className="rounded-lg border p-4">
                   <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                     <h2 className="text-lg font-semibold">{community.name}</h2>
-                    <Badge variant="outline">{community.privacy === "private" ? "Private" : "Public"}</Badge>
+                    <Badge variant="outline">
+                      {community.privacy === "private" ? "Private" : "Public"}
+                    </Badge>
                   </div>
-                  <p className="mb-2 text-sm text-muted-foreground">{community.members} members</p>
+                  <p className="mb-2 text-sm text-muted-foreground">
+                    {community.members} members
+                  </p>
                   <p className="mb-4 text-sm">{community.description}</p>
                   <div className="flex gap-2">
                     <Button size="sm" asChild>
                       <Link href={`/communities/${community.id}`}>View</Link>
                     </Button>
                     <form action={leaveCommunity}>
-                      <input type="hidden" name="communityId" value={community.id} />
+                      <input
+                        type="hidden"
+                        name="communityId"
+                        value={community.id}
+                      />
                       <Button size="sm" variant="outline" type="submit">
                         Leave
                       </Button>
@@ -243,11 +276,15 @@ export default async function CommunitiesPage() {
             </CardHeader>
             <CardContent className="grid gap-3 sm:grid-cols-2">
               {discoverCommunities.length === 0 && (
-                <p className="text-sm text-muted-foreground">No societies left to discover right now.</p>
+                <p className="text-sm text-muted-foreground">
+                  No societies left to discover right now.
+                </p>
               )}
               {discoverCommunities.map((community) => (
                 <div key={community.id} className="rounded-lg border p-4">
-                  <div className="mb-1 text-base font-semibold">{community.name}</div>
+                  <div className="mb-1 text-base font-semibold">
+                    {community.name}
+                  </div>
                   <div className="mb-3 text-sm text-muted-foreground">
                     {community.category} • {community.members} members
                   </div>
@@ -261,7 +298,11 @@ export default async function CommunitiesPage() {
                       </Button>
                     ) : (
                       <form action={joinCommunity}>
-                        <input type="hidden" name="communityId" value={community.id} />
+                        <input
+                          type="hidden"
+                          name="communityId"
+                          value={community.id}
+                        />
                         <Button size="sm" variant="secondary" type="submit">
                           Join
                         </Button>
