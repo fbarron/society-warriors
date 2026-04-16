@@ -1,8 +1,4 @@
-/**
- * Supabase Database Queries
- * All database operations for the new society-based posting system
- */
-
+// Supabase Database Queries.
 import { createClient } from "./server";
 
 export type PostStatus = "pending" | "approved" | "rejected";
@@ -14,16 +10,14 @@ export type PostImageMetadata = {
   filename: string;
 };
 
-// ============================================================================
 // POSTS QUERIES
-// ============================================================================
 
 export async function createPost(
   communityId: string,
   userId: string,
   content: string,
   status: PostStatus = "pending",
-  imageMetadata: PostImageMetadata[] = []
+  imageMetadata: PostImageMetadata[] = [],
 ) {
   const client = await createClient();
   const { data, error } = await client
@@ -48,7 +42,7 @@ export async function createPost(
       status_updated_at,
       user:users(id, name, avatar_url),
       community:communities(id, name)
-    `
+    `,
     );
 
   return { data, error };
@@ -68,7 +62,7 @@ export async function getPendingPosts(communityId: string) {
       status_updated_at,
       user:users(id, name, avatar_url),
       comments(id)
-    `
+    `,
     )
     .eq("community_id", communityId)
     .eq("status", "pending")
@@ -94,7 +88,7 @@ export async function approvePost(postId: string) {
       status,
       created_at,
       user:users(id, name, avatar_url)
-    `
+    `,
     );
 
   return { data, error };
@@ -117,7 +111,7 @@ export async function rejectPost(postId: string) {
       status,
       created_at,
       user:users(id, name, avatar_url)
-    `
+    `,
     );
 
   return { data, error };
@@ -132,10 +126,16 @@ export async function deletePost(postId: string) {
     .single();
 
   if (postLookupError || !post) {
-    return { data: null, error: postLookupError ?? new Error("Post not found") };
+    return {
+      data: null,
+      error: postLookupError ?? new Error("Post not found"),
+    };
   }
 
-  const { error: commentsError } = await client.from("comments").delete().eq("post_id", postId);
+  const { error: commentsError } = await client
+    .from("comments")
+    .delete()
+    .eq("post_id", postId);
   if (commentsError) {
     return { data: null, error: commentsError };
   }
@@ -151,15 +151,24 @@ export async function deletePost(postId: string) {
 
   const imagePaths = Array.isArray(post.image_metadata)
     ? post.image_metadata
-        .map((image: Partial<PostImageMetadata> | null | undefined) => image?.path)
-        .filter((path): path is string => typeof path === "string" && path.length > 0)
+        .map(
+          (image: Partial<PostImageMetadata> | null | undefined) => image?.path,
+        )
+        .filter(
+          (path): path is string => typeof path === "string" && path.length > 0,
+        )
     : [];
 
   if (imagePaths.length > 0) {
     await client.storage.from("post-images").remove(imagePaths);
   }
 
-  const { data, error } = await client.from("posts").delete().eq("id", postId).select("id").maybeSingle();
+  const { data, error } = await client
+    .from("posts")
+    .delete()
+    .eq("id", postId)
+    .select("id")
+    .maybeSingle();
 
   return { data, error };
 }
@@ -167,7 +176,7 @@ export async function deletePost(postId: string) {
 export async function getApprovedPostsForCommunities(
   communityIds: string[],
   limit = 20,
-  offset = 0
+  offset = 0,
 ) {
   const client = await createClient();
   const { data, error } = await client
@@ -182,7 +191,7 @@ export async function getApprovedPostsForCommunities(
       community:communities(id, name),
       user:users(id, name, avatar_url),
       comments(id, content, created_at, user:users(id, name, avatar_url))
-    `
+    `,
     )
     .in("community_id", communityIds)
     .eq("status", "approved")
@@ -192,9 +201,7 @@ export async function getApprovedPostsForCommunities(
   return { data, error };
 }
 
-// ============================================================================
 // NOTIFICATIONS QUERIES
-// ============================================================================
 
 export async function createNotification(
   userId: string,
@@ -202,7 +209,7 @@ export async function createNotification(
   actionType: string,
   targetId: string | null,
   targetType: string | null,
-  message: string
+  message: string,
 ) {
   const client = await createClient();
   const { data, error } = await client
@@ -236,7 +243,7 @@ export async function getUserNotifications(userId: string, limit = 20) {
       target_id,
       target_type,
       actor:users!notifications_actor_id_fkey(id, name, avatar_url)
-    `
+    `,
     )
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
@@ -267,13 +274,11 @@ export async function getUnreadNotificationCount(userId: string) {
   return { count, error };
 }
 
-// ============================================================================
 // COMMUNITY MEMBERSHIP & ROLE CHECKS
-// ============================================================================
 
 export async function getCommunityRole(
   userId: string,
-  communityId: string
+  communityId: string,
 ): Promise<{ role: string | null; status: string | null; error: any }> {
   const client = await createClient();
   const { data, error } = await client
@@ -292,7 +297,7 @@ export async function getCommunityRole(
 
 export async function isAdmin(
   userId: string,
-  communityId: string
+  communityId: string,
 ): Promise<boolean> {
   const { role, error } = await getCommunityRole(userId, communityId);
   if (error) return false;
@@ -311,7 +316,7 @@ export async function getCommunityMembers(communityId: string) {
       status,
       created_at,
       user:users(id, name, avatar_url)
-    `
+    `,
     )
     .eq("community_id", communityId)
     .order("role", { ascending: false });
@@ -319,10 +324,7 @@ export async function getCommunityMembers(communityId: string) {
   return { data, error };
 }
 
-// ============================================================================
 // TEMPLATES QUERIES
-// ============================================================================
-
 export async function getSocietyTemplates() {
   const client = await createClient();
   const { data, error } = await client
@@ -338,7 +340,7 @@ export async function getTemplateById(templateId: string) {
   const { data, error } = await client
     .from("society_templates")
     .select(
-      `id, name, description, category, icon, default_rules, suggested_description`
+      `id, name, description, category, icon, default_rules, suggested_description`,
     )
     .eq("id", templateId)
     .single();
